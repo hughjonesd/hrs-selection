@@ -1,0 +1,381 @@
+---
+title: "Natural selection in the Health and Retirement Study"
+author: "David Hugh-Jones"
+date: "September 2023"
+format: 
+  pdf:
+    geometry:
+    - top=2in
+    - left=1.5in
+    - right=1.5in
+    - heightrounded
+editor: visual
+editor_options: 
+  chunk_output_type: console
+knitr:
+  opts_chunk: 
+    echo: false
+bibliography: bibliography-hrs.bib
+---
+
+```{r setup}
+
+options(digits = 3)
+set.seed(271075)
+
+library(haven)
+library(forcats)
+# library(Hmisc)
+library(dplyr, warn.conflicts = FALSE)
+library(stringr)
+library(purrr)
+library(ggplot2)
+library(tidyr)
+library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
+
+shorten <- function (x) {
+  x <- str_remove(x, "^(A4|E4)_")
+  x_short <- str_remove(x, "_.*")
+
+  duplicates <- table(x_short)
+  duplicates <- names(duplicates)[duplicates > 1]
+  x_short[x_short %in% duplicates] <- x[x_short %in% duplicates]
+
+  x_short
+}
+
+calc_income <- function (x) {
+  ages <- x |> select(matches("r\\d+agey_e"))
+  income <- x |> select(matches("r\\d+iearn"))
+  income <- rowMeans(income, na.rm = TRUE)
+  income_r <- resid(lm(income ~ factor(x$rabyear)))
+  income_r <- income_r - min(income_r) + 1
+
+  income_r
+}
+
+# rand HRS longit data. VERY BIG
+# Done just once:
+# rand_orig <- haven::read_dta("data/randhrs/randhrs1992_2020v1.dta")
+# saveRDS(rand_orig, file = "data/randhrs/rand-orig.rds", compress = FALSE)
+rand_orig <- readRDS("data/randhrs/rand-orig.rds")
+
+# ragender: 1 male, 2 female
+rand_orig <- filter(rand_orig, 
+                    (rabyear <= 1965 & ragender == 1) |
+                    (rabyear <= 1970 & ragender == 2))
+
+# african ancestry
+pgen4a <- haven::read_dta("data/PGENSCORE4r3/pgenscore4a_r.dta")
+# european ancestry
+pgen4e <- haven::read_dta("data/PGENSCORE4r3/pgenscore4e_r.dta")
+
+# original HRS tracker file
+trk_orig <- haven::read_dta("data/trk2020v3/trk2020tr_r.dta")
+trk_weights <- trk_orig |> select(HHID, PN, matches("BIOWGTR"))
+
+
+eths <- c("white", "black")
+pgens <- list(white = pgen4e, black = pgen4a)
+
+rands <- list()
+
+for (eth in eths) {
+  pgen <- pgens[[eth]]
+  names(pgen) <- shorten(names(pgen))
+  pgs <- pgen |>
+    select(-hhid, -pn, -version,
+           -matches("^PC\\d"),
+           -matches("^NEB"), # number ever born
+           # outdated, or EDU3 without 23andMe:
+           -EDU2, -EDU3, -HEIGHT, -BMI,
+           -AD, -AD2, -GENCOG, -EVRSMK, -LONG, -CPD_TAG10,
+           -ADHD_PGC10, MDD
+           ) |>
+    names()
+
+  pcs <- c(paste0("PC1_5", LETTERS[1:5]), paste0("PC6_10", LETTERS[1:5]))
+
+  rand <- inner_join(rand_orig, pgen,
+                     join_by(hhid, pn),
+                     unmatched = "drop",
+                     relationship = "one-to-one")
+
+  rand <- rand |>
+    mutate(
+      mean_raevbrn = mean(raevbrn, na.rm = TRUE),
+      rlrs = raevbrn/mean_raevbrn,
+      .by = rabyear
+    ) |>
+    mutate(
+      income_resid = calc_income(rand),
+      income_resid = income_resid - min(income_resid, na.rm = TRUE) + 1,
+      income_med = chop_equally(income_resid, 2, labels = c("Low", "High")),
+      # as.numeric avoids haven.labelled issues:
+      raedyrs = as.numeric(raedyrs),
+      edu = chop(as.numeric(raedyrs), 13, lbl_discrete(symbol = "-")) 
+    )
+
+  # did this to check if white larger sample size drove result sizes; 
+  # it didn't:
+  # rand <- rand |> slice_sample(n = 3100)
+
+  # two of four Alzheimer's variants with awkward names:
+  pgs <- str_replace(pgs, "^01", "ALZ_01")
+  names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
+  
+  # weighting
+  rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
+  rand$weight <- ifelse(! is.na(rand$MBIOWGTR), rand$MBIOWGTR, rand$NBIOWGTR)
+  
+  rands[[eth]] <- rand
+}
+
+
+```
+
+Hugh-Jones and Abdellaoui (2022) explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from Becker (XXX). The theory has two components.
+
+1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children.
+2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups.
+
+The evidence for point 1 is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against. And vice versa, scores which correlate positively with human capital are being selected for. The evidence for point 2 is that correlations with number of children are larger and more significant among people with lower income, less education and single parents.
+
+Here, I test the same theory in the US population, using the Health and Retirement Survey (HRS; XXX). This gives an independent test of the theory. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. Also, the HRS provides precalculated polygenic scores (XXX Aysu) for both black and (non-hispanic) white participants, so I can check whether the human capital theory of natural selection works in both these ethnicities.
+
+Economic theory treats all humans as the same. Once you have controlled appropriately for people's preferences, resources and beliefs, there should be no difference between ethnicities. So, the economic theory of fertility predicts that patterns of natural selection should be the same in both white and black ethnic groups. Of course, ethnic groups may have different economic characteristics. Also, most of the polygenic scores were created using people of European ancestry. This means they are less predictive for people with African ancestry. If natural selection works via scores' correlation with phenotypes, then we would expect these correlations to be smaller among black people.
+
+# Data
+
+The HRS sample focuses on cohorts born between 1920 and 1960, but contains some younger and older participants. I include only male participants born before 1965 and female participants born before 1970, which guarantees that most will have completed their fertility by 2010.
+
+TODO: I think for all these guys, the raevborn question will have been asked by the time they were indeed over 45/40. Double check.
+
+The resulting sample contains `r nrow(rands$white)` genotyped white participants and `r nrow(rands$black)` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I use polygenic scores (PGS) precalculated by XXX. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth).
+
+PGS are rescaled to zero mean and unit variance within each ethnic group, so effect sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten principal components of the DNA array data.
+
+I use realised fertility (number of children ever born) as the key dependent variable. I use this rather than relative lifetime reproductive success for ease of interpretation and because I don't have data for dates when children were born. My focus is on examining patterns of natural selection across PGS, rather than estimating their effects on PGS over time; raw fertility is good enough for this.
+
+The HRS contains weights which match survey respondents to the US population. I use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, I weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012.
+
+# Results
+
+```{r stat-regressions}
+
+tidy_pgs <- mod_pgs <- list()
+tidy_pgs_edyrs <- mod_pgs_edyrs <- list()
+tidy_pgs_x_ed <- mod_pgs_x_ed <- list()
+tidy_pgs_x_inc <- mod_pgs_x_inc <- list()
+cors_fert_edu <- tidy_pgs_joined <- list()
+
+for (eth in eths) {
+  rand <- rands[[eth]]
+
+  form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
+  mod_pgs[[eth]] <- map(form_pgs, 
+                        \(x) lm(x, data = rand, weights = weight)
+                        )
+  
+  tidy_pgs[[eth]] <- list_rbind(map(
+    mod_pgs[[eth]],
+    broom::tidy,
+    conf.int = TRUE,
+    conf.level = 0.95
+  )) |>
+    filter(term != "(Intercept)", ! term %in% pcs)
+  
+  form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
+                                              response = "raedyrs"))
+  mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
+                              \(x) lm(x, data = rand, weights = weight)
+                              )
+  
+  tidy_pgs_edyrs[[eth]] <-
+    list_rbind(map(mod_pgs_edyrs[[eth]], broom::tidy)) |>
+    filter(term != "(Intercept)", ! term %in% pcs)
+  
+  tidy_pgs_joined[[eth]] <- inner_join(tidy_pgs[[eth]], tidy_pgs_edyrs[[eth]],
+                                by = join_by(term),
+                                unmatched = "error",
+                                suffix = c(".fert", ".edyrs"),
+                                relationship = "one-to-one")
+  cors_fert_edu[[eth]] <- cor(tidy_pgs_joined[[eth]]$estimate.edyrs, 
+                     tidy_pgs_joined[[eth]]$estimate.fert)
+
+  # the colon interaction estimates the effect separately within each group
+  form_pgs_x_ed <- paste0(pgs, ":edu") |>
+    map(\(x) reformulate(c(x, "edu", pcs), response = "rlrs"))
+  mod_pgs_x_ed[[eth]]  <-
+    map(form_pgs_x_ed, 
+        \(x) lm(x, data = rand, weights = weight)
+        )
+  
+  tidy_pgs_x_ed[[eth]] <-
+    map(mod_pgs_x_ed[[eth]], broom::tidy, conf.int = TRUE)
+  names(tidy_pgs_x_ed[[eth]]) <- pgs
+  tidy_pgs_x_ed[[eth]] <-
+    list_rbind(tidy_pgs_x_ed[[eth]], names_to = "pgs") |>
+    filter(!term %in% c("(Intercept)", "edu13-17", pcs)) |>
+    mutate(edu = str_remove(term, ".*:"))
+  
+  form_pgs_x_inc <- paste0(pgs, ":income_med") |>
+    map(\(x) reformulate(c(x, "income_med", pcs), response = "rlrs"))
+  mod_pgs_x_inc[[eth]]  <-
+    map(form_pgs_x_inc, 
+        \(x) lm(x, data = rand, weights = weight)
+        )
+  
+  tidy_pgs_x_inc[[eth]] <-
+    map(mod_pgs_x_inc[[eth]], broom::tidy, conf.int = TRUE)
+  names(tidy_pgs_x_inc[[eth]]) <- pgs
+  tidy_pgs_x_inc[[eth]] <-
+    list_rbind(tidy_pgs_x_inc[[eth]], names_to = "pgs") |>
+    filter(!term %in% c("(Intercept)", "income_medHigh", pcs)) |>
+    mutate(income_med = str_remove(term, ".*:income_med"))
+}
+
+
+tidy_pgs_eth <- bind_rows(tidy_pgs,  .id = "ethnicity")
+
+n_tests <- nrow(tidy_pgs_eth)
+n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
+if (n_sig_bonf != 1) stop("More/less than 1 score was Bonferroni significant")
+
+cor_fert_edu_phen <- list()
+for (eth in eths) {
+  cor_fert_edu_phen[[eth]] <- lm(raevbrn ~ raedyrs, data = rands[[eth]],
+                                 weights = weight) |> 
+    coef() |> 
+    pluck("raedyrs")
+}
+
+
+```
+
+@fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores. (Also, because all scores are differently weighted sums of the same set of alleles, if we can reject the null for any score we should probably reject it for all of them; in other words, effect sizes are more interesting than p values here.)
+
+```{r}
+#| label: fig-fertility
+#| fig-cap: |
+#|   Effects of PGS on realized fertility. Values are effects of a one
+#|   standard deviation (within ethnicity) change of the PGS on fertility,
+#|   controlling for 10 principal components of genomic array data. Scales
+#|   differ between the two charts.
+#| fig-height: 6
+
+tidy_pgs_eth |>
+  mutate(
+    term = fct_reorder(term, estimate, \(x) x[2]),
+    ethnicity = ifelse(ethnicity == "white", "Whites (non-Hispanic)", "Blacks"),
+    # hack to order scales separately from 
+    # https://stackoverflow.com/questions/26238687/r-reorder-facet-wrapped-x-axis-with-free-x-in-ggplot2
+    term_mangled = paste(ethnicity, term, sep = "/"),
+    term_mangled = fct_reorder(term_mangled, estimate),
+  ) |>
+  ggplot(aes(estimate, term_mangled, color = ethnicity)) +
+    geom_vline(xintercept = 0) +
+    geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                    position = position_dodge(width = 0.5), 
+                    alpha = 0.8, size = 0.3) +
+    facet_wrap(vars(ethnicity), scales = "free") +
+    theme_light() + 
+    scale_y_discrete(labels = \(x) str_remove(x, "^.*/")) +
+    scale_color_manual(values = c("orange2", "seagreen")) +
+    labs(
+      x = "", y = "",
+      title = "Effects of polygenic scores on fertility"
+    ) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      legend.position = "none",
+      axis.text.y = element_text(size = 7),
+      strip.text = element_text(colour = "black", size = 10),
+      strip.background = element_rect(fill = NA)
+    )
+```
+
+```{r}
+#| label: stat-fertility-edu
+#| cache: true
+
+cors_boot <- list()
+for (eth in eths) {
+  rand_short <- rands[[eth]] |> 
+    select(all_of(pgs), all_of(pcs), raevbrn, raedyrs, weight)
+  cors_boot[[eth]] <-
+    replicate(199, {
+      rand <- rand_short |> 
+              slice_sample(prop = 1, replace = TRUE)
+      
+      coef_pgs_fert <- pgs |> 
+        map(\(x) reformulate(c(x, pcs), response = "raevbrn")) |> 
+        map(\(x) lm(x, data = rand, weights = weight)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+      
+      coef_pgs_edyrs <- pgs |> 
+        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
+        map(\(x) lm(x, data = rand, weights = weight)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+      
+      cor(coef_pgs_fert, coef_pgs_edyrs)
+    })
+}
+
+tails_boot <- map(cors_boot, \(x) quantile(x, c(0.025, 0.975)))
+
+if (! all(tails_boot$white < 0)) {
+  stop("Fertility-edu correlation NOT sig at 95% for whites")
+}
+if (all(tails_boot$black < 0)) {
+  stop("Fertility-edu correlation IS sig at 95% for blacks")
+}
+
+```
+
+@fig-fertility-edu plots each PGS's correlation with fertility against its correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white`, bootstrapped 95% C.I. `r tails_boot$white[1]` to `r tails_boot$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black`, bootstrapped 95% C.I. `r tails_boot$black[1]` to `r tails_boot$black[2]`). I use bootstraps to make inferences from the sample of individuals, rather than the "sample" of different PGS.
+
+The relationship is imprecisely estimated in the smaller black sample, but it is also steeper. Put another way, if we measured PGS in units of "years of associated education", estimated selection effects would be larger among blacks than whites. One reason for this may be that the correlation between phenotypic years of education and fertility is larger for blacks than for whites. In bivariate regressions, an extra year of education reduces fertility by `r cor_fert_edu_phen$white` for whites and `r cor_fert_edu_phen$black` for blacks [cf. @goldscheider1969minority; @johnson1979minority; @yang2003big]. In turn, the simplest explanation for this fact would be point 2 of the theory. Because black people on average have lower incomes and fewer years of education, and are more likely to be single parents, the fertility-wage tradeoff is especially acute for them. TODO what does the existing literature say?
+
+TODO if so then presumably controlling for education and income would reduce these differences.
+
+```{r}
+#| label: fig-fertility-edu
+#| fig-cap: |
+#|   Scatterplot of PGS partial correlations with fertility and years of
+#|   education. Controls include 10 principal components of genetic array
+#|   data. Dashed lines show linear regressions.
+#| fig-subcap:
+#|   - ""
+#|   - ""
+#| layout-nrow: 2
+#| column: page
+
+titles <- list(white = "Whites (non-Hispanic)", black = "Blacks")
+for (eth in eths) {
+  ggp <- ggplot(tidy_pgs_joined[[eth]], aes(estimate.edyrs, estimate.fert)) +
+          geom_hline(yintercept = 0, color = "grey80") +
+          geom_vline(xintercept = 0, color = "grey80") +
+          geom_point() +
+          geom_smooth(method = "lm", formula = y ~ x, se = FALSE, 
+                      linetype = "dashed", colour = "red", linewidth = 0.5) +
+          scale_y_continuous(breaks = seq(-0.35, 0.15, 0.05),
+                             labels = scales::label_number(0.01)) +
+          coord_cartesian(xlim = c(-.3, .75)) +
+          theme_light() + 
+          theme(panel.grid = element_blank()) +
+          labs(
+            title = titles[[eth]],
+            x = "Effect on years of education",
+            y = "Effect on realized fertility"
+          )
+  print(ggp)
+}
+
+# TODO: 3 scores are outliers among african-americans, with negative effects
+# on fertility and education - kidney disease, including the trans-ethnic
+# score, and PTSD estimated among european ancestry. Why?
+```
+
+# Bibliography
