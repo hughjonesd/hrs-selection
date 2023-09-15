@@ -116,6 +116,7 @@ nice_names <- c(
   GCOG2       = "Gen. cognition"
 )
 
+titles <- list(white = "Whites (non-Hispanic)", black = "Blacks")
 
 shorten <- function (x) {
   x <- str_remove(x, "^(A4|E4)_")
@@ -193,6 +194,10 @@ for (eth in eths) {
                      unmatched = "drop",
                      relationship = "one-to-one")
 
+  rand <- rand |> left_join(rand_fam, 
+                            by = join_by(hhid, pn),
+                            unmatched = "drop",
+                            relationship = "one-to-one")
   rand <- rand |>
     mutate(.by = rabyear,
       mean_raevbrn = mean(raevbrn, na.rm = TRUE),
@@ -218,14 +223,10 @@ for (eth in eths) {
       married = factor(r10mstat == 1, 
                        levels = c(FALSE, TRUE),
                        labels = c("Other", "Married")),
-    )
-
-  rand <- rand |> left_join(rand_fam, 
-                            by = join_by(hhid, pn),
-                            unmatched = "drop",
-                            relationship = "one-to-one")
-  rand <- rand |> mutate(
-    r10sibs = r10livsib + r10sbdied
+    r10sibs = r10livsib + r10sbdied,
+    agefb = r10agey_e - h10ageokid,
+    agefb = ifelse(agefb < 12, NA_real_, agefb),
+    agefb = chop_equally(agefb, 2, labels = c("Low", "High"))
   )
   
   # did this to check if white larger sample size drove result sizes; 
@@ -281,6 +282,8 @@ tidy_pgs_sibs <- mod_pgs_sibs <- list()
 tidy_pgs_x_ed <- mod_pgs_x_ed <- list()
 tidy_pgs_x_inc <- mod_pgs_x_inc <- list()
 tidy_pgs_x_mar <- mod_pgs_x_mar <- list()
+tidy_pgs_x_agefb <- mod_pgs_x_agefb <- list()
+
 cors_fert_edu <- tidy_pgs_joined <- list()
 cors_sibs_edu <- list()
 for (eth in eths) {
@@ -378,6 +381,23 @@ for (eth in eths) {
     mutate(
       married = str_remove(term, ".*:married")
     ) 
+  
+  form_pgs_x_agefb <- paste0(pgs, ":agefb") |>
+    map(\(x) reformulate(c(x, "agefb", pcs), response = "raevbrn"))
+  mod_pgs_x_agefb[[eth]]  <-
+    map(form_pgs_x_agefb, 
+        \(x) lm(x, data = rands[[eth]], weights = weight)
+        )
+  
+  tidy_pgs_x_agefb[[eth]] <-
+    map(mod_pgs_x_agefb[[eth]], broom::tidy, conf.int = TRUE) |> 
+    setNames(pgs) |> 
+    list_rbind(names_to = "pgs") |>
+    filter(! term %in% c("(Intercept)", "agefbHigh", pcs)) |>
+    mutate(
+      agefb = str_remove(term, ".*:agefb")
+    ) 
+  
 }
 
 
@@ -507,7 +527,7 @@ The relationship is imprecisely estimated in the smaller black sample, but it is
 #| layout-nrow: 2
 #| column: page
 
-titles <- list(white = "Whites (non-Hispanic)", black = "Blacks")
+
 for (eth in eths) {
   ggp <- ggplot(tidy_pgs_joined[[eth]], aes(estimate.edyrs, estimate.fert)) +
           geom_hline(yintercept = 0, color = "grey80") +
@@ -688,7 +708,7 @@ for (ci in list(ci_inc_w, ci_inc_b, ci_ed_w, ci_ed_b)) {
 }
 ```
 
-@fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. However, in bootstrap tests, the median difference in absolute effect sizes is not significantly different from 0, for either ethnic group. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents, and this is significant in bootstraps (95% C.I. for median difference `r ci_mar_w[1]` to `r ci_mar_w[2]`).
+@fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. However, in bootstrap tests, the median difference in absolute effect sizes is not significantly different from 0, for either ethnic group. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents, and this is significant in bootstraps (95% C.I. for median difference `r ci_mar_w[1]` to `r ci_mar_w[2]`). @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values. TODO test
 
 ```{r}
 #| label: fig-x-edu
@@ -700,10 +720,15 @@ for (ci in list(ci_inc_w, ci_inc_b, ci_ed_w, ci_ed_b)) {
 #|   components of genetic array data, estimated within the low/high
 #|   education group. Lines show quartiles.
 
+nobs <- map_dbl(eths, 
+                \(x) nobs(mod_pgs_x_agefb[[x]][[1]])) |> 
+  setNames(eths)
+
 tidy_pgs_x_ed |> 
   list_rbind(names_to = "ethnicity") |> 
   mutate(
-    Ethnicity = unlist(titles[ethnicity]),
+    Ethnicity = paste0(unlist(titles[ethnicity]), 
+                       " (N = ", nobs[ethnicity], ")"),
     Education = str_remove(edu, "edu")
   ) |> 
   ggplot(aes(Education, abs(estimate), color = Education, fill = Education)) +
@@ -781,8 +806,59 @@ tidy_pgs_x_mar |>
 
 ```
 
+```{r}
+#| label: fig-x-agefb
+#| fig-cap: |
+#|   Violin plots of polygenic score effects on fertility by age at 
+#|   first birth (median split). Effect sizes are
+#|   absolute sizes of effects of a one standard deviation (within-ethnicity) 
+#|   change of the PGS on fertility, controlling for 10 principal 
+#|   components of genetic array data, estimated within the low/high income
+#|   group. Lines show quartiles.
+
+tidy_pgs_x_agefb |> 
+    list_rbind(names_to = "ethnicity") |> 
+    mutate(
+        Ethnicity = unlist(titles[ethnicity]),
+        agefb = fct_relevel(agefb, "Low", "High")
+    ) |> 
+    ggplot(aes(agefb, abs(estimate), color = agefb, fill = agefb)) +
+      geom_point(position = position_jitter(width = 0.05), alpha = 0.8) +
+      geom_violin(alpha = 0.4, draw_quantiles = 1:3/4) +
+      facet_wrap(vars(Ethnicity), scales = "free_y") +
+      labs(
+          x = "Age at first birth",
+          y = "Absolute effect size"
+      ) +
+      theme_minimal() +
+      theme(
+          legend.position = "none"
+      )
+
+```
+
 # Discussion
 
 The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is no evidence that PGS effects on fertility are larger among people with less education, unlike the UK [@hugh2022human]. And there's not enough evidence to show that effects on fertility are larger for lower-income people. Also, the smaller black sample made most tests inconclusive for this population.
+
+# Appendix
+
+```{r}
+#| label: fig-cohorts
+#| fig-cap: Distribution of birth years for the sample
+#| fig-subcap:
+#|   - ""
+#|   - ""
+#| layout-nrow: 2
+#| column: page
+
+for (eth in eths) {
+  ggp <- ggplot(rands[[eth]], aes(rabyear)) + 
+    geom_bar() +
+    theme_minimal() +
+    labs(x = "Birth year", y = "Count", title = titles[[eth]])
+  print(ggp)
+}
+```
 
 # Bibliography
