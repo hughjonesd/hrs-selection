@@ -57,6 +57,7 @@ library(purrr)
 library(ggplot2)
 library(tidyr)
 library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
+library(survey)
 
 nice_names <- c(
   SCZ         = "Schizophrenia",
@@ -255,7 +256,29 @@ names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 # weighting
 rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
 rand$weight <- ifelse(! is.na(rand$MBIOWGTR), rand$MBIOWGTR, rand$NBIOWGTR)
+# compensate for fecund parents more likely to have child in survey:
+rand$parent_weight <- rand$weight / (rand$r10livsib + 1)
 
+rand <- rand |> 
+  select(ethnicity, all_of(pgs), all_of(pcs), weight, raevbrn, raedyrs,
+         r10sibs, edu, income_med, married, agefb, rabyear,
+         raehsamp, raestrat, parent_weight)
+
+r_parents <- svydesign(
+    id = ~ raehsamp,
+		strata = ~ raestrat,
+		weights = ~ parent_weight, 
+		nest = TRUE,
+		data = rand |> drop_na(parent_weight) 
+		)
+
+rand <- svydesign(
+    id = ~ raehsamp,
+		strata = ~ raestrat,
+		weights = ~ weight, 
+		nest = TRUE,
+		data = rand |> drop_na(weight) 
+		)
 
 ```
 
@@ -303,11 +326,12 @@ cors_sibs_edu <- list()
 cor_fert_edu_phen <- list()
 
 for (eth in eths) {
-  r_eth <- rand |> filter(ethnicity == eth)
-
+  r_eth <- rand |> subset(ethnicity == eth)
+  r_parents_eth <- r_parents |> subset(ethnicity == eth)
+  
   form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
   mod_pgs[[eth]] <- map(form_pgs, 
-                        \(x) lm(x, data = r_eth, weights = weight)
+                        \(x) svyglm(x, r_eth)
                         )
   
   tidy_pgs[[eth]] <- mod_pgs[[eth]] |> 
@@ -318,7 +342,7 @@ for (eth in eths) {
   form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
                                               response = "raedyrs"))
   mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
-                              \(x) lm(x, data = r_eth, weights = weight)
+                              \(x) svyglm(x, r_eth)
                               )
   
   tidy_pgs_ed[[eth]] <- mod_pgs_edyrs[[eth]] |>  
@@ -334,12 +358,10 @@ for (eth in eths) {
   cors_fert_edu[[eth]] <- cor(tidy_pgs_joined[[eth]]$estimate.edyrs, 
                      tidy_pgs_joined[[eth]]$estimate.fert)
 
-  
   form_pgs_sibs <- map(pgs, 
                        \(x) reformulate(c(x, pcs), response = "r10sibs"))
   mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
-                             \(x) lm(x, data = r_eth, 
-                                     weights = weight/(1 + r10sibs)))
+                             \(x) svyglm(x, r_parents_eth))
   
   tidy_pgs_sibs[[eth]] <- mod_pgs_sibs[[eth]] |> 
     map(broom::tidy, conf.int = TRUE, conf.level = 0.95) |>
@@ -354,7 +376,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "edu", pcs), response = "raevbrn"))
   mod_pgs_x_ed[[eth]]  <-
     map(form_pgs_x_ed, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm(x, r_eth)
         )
   
   tidy_pgs_x_ed[[eth]] <-
@@ -369,7 +391,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "income_med", pcs), response = "raevbrn"))
   mod_pgs_x_inc[[eth]]  <-
     map(form_pgs_x_inc, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm(x, r_eth)
         )
   
   tidy_pgs_x_inc[[eth]] <-
@@ -385,7 +407,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "married", pcs), response = "raevbrn"))
   mod_pgs_x_mar[[eth]]  <-
     map(form_pgs_x_mar, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm(x, r_eth)
         )
   
   tidy_pgs_x_mar[[eth]] <-
@@ -402,7 +424,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "agefb", pcs), response = "raevbrn"))
   mod_pgs_x_agefb[[eth]]  <-
     map(form_pgs_x_agefb, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm(x, r_eth)
         )
   
   tidy_pgs_x_agefb[[eth]] <-
@@ -415,7 +437,7 @@ for (eth in eths) {
     ) 
   
   cor_fert_edu_phen[[eth]] <- 
-    lm(raevbrn ~ raedyrs, data = r_eth, weights = weight) |> 
+    svyglm(raevbrn ~ raedyrs, r_eth) |> 
     coef() |> 
     pluck("raedyrs")
 }
@@ -425,11 +447,11 @@ tidy_pgs_eth <- bind_rows(tidy_pgs,  .id = "ethnicity")
 
 n_tests <- nrow(tidy_pgs_eth)
 n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
-if (n_sig_bonf != 1) stop("More/less than 1 score was Bonferroni significant")
+if (n_sig_bonf != 0) stop("More/less than 0 score was Bonferroni significant")
 
 ```
 
-Appendix @fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
+Appendix @fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and no scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
 #| label: stat-bootstraps
@@ -439,26 +461,28 @@ n_reps <- 599
 cors_boot <- list()
 for (eth in eths) {
   rand_short <- rand |> 
-    filter(ethnicity == eth) |> 
-    select(all_of(pgs), all_of(pcs), raevbrn, raedyrs, weight, r10sibs)
+    subset(ethnicity == eth)
   cors_boot[[eth]] <-
     replicate(n_reps, {
-      r_boot <- rand_short |> 
-              slice_sample(prop = 1, replace = TRUE)
+      # survey package automatically does the right thing
+      # possibly I should be using survey::bootweights
+      # or survey::withReplicates and a function
+      r_boot <- rand_short[sample(nrow(rand_short), replace = TRUE), ]
       
       coef_pgs_fert <- pgs |> 
         map(\(x) reformulate(c(x, pcs), response = "raevbrn")) |> 
-        map(\(x) lm(x, data = r_boot, weights = weight)) |> 
+        map(\(x) svyglm(x, r_boot)) |> 
         map_dbl(\(x) coef(x)[[2]])
       
       coef_pgs_sibs <- pgs |> 
         map(\(x) reformulate(c(x, pcs), response = "r10sibs")) |> 
-        map(\(x) lm(x, data = r_boot, weights = weight/(r10sibs + 1))) |> 
+        # need to add , weights = weight/(r10sibs + 1)
+        map(\(x) svyglm(x, r_boot)) |> 
         map_dbl(\(x) coef(x)[[2]])
       
       coef_pgs_edyrs <- pgs |> 
         map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
-        map(\(x) lm(x, data = r_boot, weights = weight)) |> 
+        map(\(x) svyglm(x, r_boot)) |> 
         map_dbl(\(x) coef(x)[[2]])
       
       c(fert_edyrs = cor(coef_pgs_fert, coef_pgs_edyrs),
@@ -848,7 +872,6 @@ tidy_pgs_eth |>
 #| layout-nrow: 2
 #| column: page
 
-for (eth in eths) {}
 
 for (eth in eths) {
   ggp <-  
