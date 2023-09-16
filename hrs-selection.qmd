@@ -140,7 +140,7 @@ calc_income <- function (x, eth) {
   ages <- x |> select(matches("r\\d+agey_e"))
   income <- x |> select(matches("r\\d+iearn"))
   income <- rowMeans(income, na.rm = TRUE)
-  income_r <- resid(lm(income ~ factor(x$rabyear)))
+  income_r <- resid(lm(income ~ factor(x$rabyear), weights = x$weight))
   income_r <- income_r - min(income_r) + 1
 
   income_r
@@ -192,7 +192,15 @@ rands <- list()
 for (eth in eths) {
   pgen <- pgens[[eth]]
   names(pgen) <- shorten(names(pgen))
-  pgs <- pgen |>
+  rands[[eth]] <- inner_join(rand_orig, pgen,
+                     join_by(hhid, pn),
+                     unmatched = "drop",
+                     relationship = "one-to-one")
+}
+
+pgs <- pgen4e |>
+    rename_with(shorten) |> 
+    # weird that I have to operate on whole df to use select semantics
     select(-hhid, -pn, -version,
            -matches("^PC\\d"),
            -matches("^NEB"), # number ever born
@@ -202,12 +210,6 @@ for (eth in eths) {
            -ADHD_PGC10, -MDD
            ) |>
     names()
-
-  rands[[eth]] <- inner_join(rand_orig, pgen,
-                     join_by(hhid, pn),
-                     unmatched = "drop",
-                     relationship = "one-to-one")
-}
 
 rand <- list_rbind(rands, names_to = "ethnicity")
 
