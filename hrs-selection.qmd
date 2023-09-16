@@ -13,6 +13,9 @@ abstract: |
 date: "September 2023"
 format: 
   pdf:
+    include-in-header:
+      - text: |
+          \usepackage{placeins}
     geometry:
     - top=2in
     - left=1.5in
@@ -30,24 +33,23 @@ bibliography: bibliography-hrs.bib
 ```{r setup}
 
 
-# TODO: siblings E5669 "how many have died"
-#   rands$white |> select(matches("r\\d+livsib")) -> tmp
-#   apply(tmp, 1, max) 
-
 # TODO: use survey package
 # here's some useful code https://github.com/ajdamico/asdfree/blob/master/27-hrs.Rmd
+# TODO (related) move away from lists and towards a single datasource with an
+# "ethnicity" column; results from broom::tidy can still be in lists?
 
 # TODO: ratio to family poverty threshold, h10inpovr
 
-# TODO: age at first birth. RAND family data provides h*ageokid
-# TODO: RAND family data has r*sbdied for how many siblings have died
+# TODO: think about your bootstraps, what's the test... given that 
+# the scores are not independent, does it really make sense to aggregate
+# a general size comparison? Or am I secretly just reproducing my own
+# crappy standard errors?
 
 options(digits = 3)
 set.seed(271075)
 
 library(haven)
 library(forcats)
-# library(Hmisc)
 library(dplyr, warn.conflicts = FALSE)
 library(stringr)
 library(purrr)
@@ -116,7 +118,9 @@ nice_names <- c(
   GCOG2       = "Gen. cognition"
 )
 
-titles <- list(white = "Whites (non-Hispanic)", black = "Blacks")
+eths <- c("white", "black")
+
+titles <- c(white = "White", black = "Black")
 
 shorten <- function (x) {
   x <- str_remove(x, "^(A4|E4)_")
@@ -168,8 +172,9 @@ rand_fam <- haven::read_dta(
 # Age of oldest kid; grandchildren; num siblings who died
 rand_fam <- rand_fam |> select(hhid, pn, h10ageokid, h10gkid, r10sbdied)
 
-eths <- c("white", "black")
 pgens <- list(white = pgen4e, black = pgen4a)
+
+pcs <- c(paste0("PC1_5", LETTERS[1:5]), paste0("PC6_10", LETTERS[1:5]))
 
 rands <- list()
 
@@ -418,49 +423,7 @@ for (eth in eths) {
 
 ```
 
-@fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores. (Also, because all scores are differently weighted sums of the same set of alleles, if we can reject the null for any score we should probably reject it for all of them; in other words, effect sizes are more interesting than p values here.)
-
-```{r}
-#| label: fig-fertility
-#| fig-cap: |
-#|  Effects of PGS on realized fertility. Values are partial correlations 
-#|  of a one standard deviation (within ethnicity) change of the PGS with
-#|  fertility, controlling for 10 principal components of genomic array 
-#|  data. Scales differ between the two charts.
-#| fig-height: 6
-
-tidy_pgs_eth |>
-  mutate(
-    term = nice_names[term],
-    term = fct_reorder(term, estimate, \(x) x[2]),
-    ethnicity = ifelse(ethnicity == "white", "Whites (non-Hispanic)", "Blacks"),
-    # hack to order scales separately from 
-    # https://stackoverflow.com/questions/26238687/r-reorder-facet-wrapped-x-axis-with-free-x-in-ggplot2
-    term_mangled = paste(ethnicity, term, sep = "//"),
-    term_mangled = fct_reorder(term_mangled, estimate),
-  ) |>
-  ggplot(aes(estimate, term_mangled, color = ethnicity)) +
-    geom_vline(xintercept = 0) +
-    geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
-                    position = position_dodge(width = 0.5), 
-                    alpha = 0.8, size = 0.3) +
-    facet_wrap(vars(ethnicity), scales = "free") +
-    theme_light() + 
-    scale_y_discrete(labels = \(x) str_remove(x, "^.*//")) +
-    scale_color_manual(values = c("orange2", "seagreen")) +
-    labs(
-      x = "", y = "",
-      title = "Effects of polygenic scores on fertility"
-    ) +
-    theme(
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor.x = element_blank(),
-      legend.position = "none",
-      axis.text.y = element_text(size = 7),
-      strip.text = element_text(colour = "black", size = 10),
-      strip.background = element_rect(fill = NA)
-    )
-```
+Appendix @fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
 #| label: stat-bootstraps
@@ -541,7 +504,7 @@ for (eth in eths) {
           theme_light() + 
           theme(panel.grid = element_blank()) +
           labs(
-            title = titles[[eth]],
+            title = titles[eth],
             x = "Effect on years of education",
             y = "Effect on realized fertility"
           )
@@ -567,48 +530,12 @@ cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
 if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so effect sizes are not comparable across the generations. @fig-siblings plots effects on number of siblings versus effects on years of education. The correlation is negative and significant for whites (correlation `r cors_sibs_edu$white`, bootstrapped 95% C.I. `r tails_boot_sibs$white[1]` to `r tails_boot_sibs$white[2]`). It is positive for blacks (correlation `r cors_sibs_edu$black`), although this is driven by two outlier PGS, which are scores for Alzheimer's with all SNPs included; without these, the correlation is negative.
-
-```{r}
-#| label: fig-siblings
-#| fig-cap: |
-#|   Scatterplot of PGS effect sizes on number of live siblings and years of
-#|   education. Controls include 10 principal components of genetic array
-#|   data. Dashed lines show linear regressions.
-#| fig-subcap:
-#|   - ""
-#|   - ""
-#| layout-nrow: 2
-#| column: page
-
-for (eth in eths) {
-  ggp <-  
-    tidy_pgs_sibs[[eth]] |> 
-    inner_join(tidy_pgs_ed[[eth]], 
-               by = join_by(term), suffix = c(".sibs", ".edyrs")) |> 
-    ggplot(aes(estimate.edyrs, estimate.sibs)) +
-      geom_hline(yintercept = 0, color = "grey80") +
-      geom_vline(xintercept = 0, color = "grey80") +
-      geom_point() +
-      geom_smooth(method = "lm", formula = y ~ x, se = FALSE, 
-                  linetype = "dashed", colour = "red", linewidth = 0.5) +
-      coord_cartesian(xlim = c(-.3, .75)) +
-      theme_light() + 
-      theme(panel.grid = element_blank()) +
-      labs(
-          title = eth,
-          x = "Effect on years of education",
-          y = "Effect on number of siblings"
-      )
-  print(ggp)
-}
-
-```
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so effect sizes are not comparable across the generations. Appendix @fig-siblings plots effects on number of siblings versus effects on years of education. The correlation is negative and significant for whites (correlation `r cors_sibs_edu$white`, bootstrapped 95% C.I. `r tails_boot_sibs$white[1]` to `r tails_boot_sibs$white[2]`). It is positive for blacks (correlation `r cors_sibs_edu$black`), although this is driven by two outlier PGS, which are scores for Alzheimer's with all SNPs included; without these, the correlation is negative.
 
 I next test part 2 of the theory more directly by interacting PGS with measures of education, income and marital status. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split.
 
 ```{r}
-#| label: stat-x-edu
+#| label: stat-x-edu-bootstraps
 #| cache: true
 
 n_reps <- 199
@@ -720,15 +647,11 @@ for (ci in list(ci_inc_w, ci_inc_b, ci_ed_w, ci_ed_b)) {
 #|   components of genetic array data, estimated within the low/high
 #|   education group. Lines show quartiles.
 
-nobs <- map_dbl(eths, 
-                \(x) nobs(mod_pgs_x_agefb[[x]][[1]])) |> 
-  setNames(eths)
 
 tidy_pgs_x_ed |> 
   list_rbind(names_to = "ethnicity") |> 
   mutate(
-    Ethnicity = paste0(unlist(titles[ethnicity]), 
-                       " (N = ", nobs[ethnicity], ")"),
+    Ethnicity = paste(titles[ethnicity], calc_n(mod_pgs_x_ed, ethnicity)),
     Education = str_remove(edu, "edu")
   ) |> 
   ggplot(aes(Education, abs(estimate), color = Education, fill = Education)) +
@@ -758,7 +681,7 @@ tidy_pgs_x_ed |>
 tidy_pgs_x_inc |> 
   list_rbind(names_to = "ethnicity") |> 
   mutate(
-    Ethnicity = unlist(titles[ethnicity]),
+    Ethnicity = paste(titles[ethnicity], calc_n(mod_pgs_x_inc, ethnicity)),
     Income = fct_relevel(income_med, c("Low", "High"))
   ) |> 
   ggplot(aes(Income, abs(estimate), color = Income, fill = Income)) +
@@ -788,8 +711,8 @@ tidy_pgs_x_inc |>
 tidy_pgs_x_mar |> 
     list_rbind(names_to = "ethnicity") |> 
     mutate(
-        Ethnicity = unlist(titles[ethnicity]),
-        married = fct_relevel(married, "Other", "Married")
+      Ethnicity = paste(titles[ethnicity], calc_n(mod_pgs_x_mar, ethnicity)),
+      married = fct_relevel(married, "Other", "Married")
     ) |> 
     ggplot(aes(married, abs(estimate), color = married, fill = married)) +
       geom_point(position = position_jitter(width = 0.05), alpha = 0.8) +
@@ -819,8 +742,8 @@ tidy_pgs_x_mar |>
 tidy_pgs_x_agefb |> 
     list_rbind(names_to = "ethnicity") |> 
     mutate(
-        Ethnicity = unlist(titles[ethnicity]),
-        agefb = fct_relevel(agefb, "Low", "High")
+     Ethnicity = paste(titles[ethnicity], calc_n(mod_pgs_x_agefb, ethnicity)),
+      agefb = fct_relevel(agefb, "Low", "High")
     ) |> 
     ggplot(aes(agefb, abs(estimate), color = agefb, fill = agefb)) +
       geom_point(position = position_jitter(width = 0.05), alpha = 0.8) +
@@ -841,7 +764,11 @@ tidy_pgs_x_agefb |>
 
 The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is no evidence that PGS effects on fertility are larger among people with less education, unlike the UK [@hugh2022human]. And there's not enough evidence to show that effects on fertility are larger for lower-income people. Also, the smaller black sample made most tests inconclusive for this population.
 
+\FloatBarrier
+
 # Appendix
+
+## Figures
 
 ```{r}
 #| label: fig-cohorts
@@ -860,5 +787,85 @@ for (eth in eths) {
   print(ggp)
 }
 ```
+
+```{r}
+#| label: fig-fertility
+#| fig-cap: |
+#|  Effects of PGS on realized fertility. Values are partial correlations 
+#|  of a one standard deviation (within ethnicity) change of the PGS with
+#|  fertility, controlling for 10 principal components of genomic array 
+#|  data. Scales differ between the two charts.
+#| fig-height: 6
+
+tidy_pgs_eth |>
+  mutate(
+    term = nice_names[term],
+    term = fct_reorder(term, estimate, \(x) x[2]),
+    ethnicity = ifelse(ethnicity == "white", "Whites (non-Hispanic)", "Blacks"),
+    # hack to order scales separately from 
+    # https://stackoverflow.com/questions/26238687/r-reorder-facet-wrapped-x-axis-with-free-x-in-ggplot2
+    term_mangled = paste(ethnicity, term, sep = "//"),
+    term_mangled = fct_reorder(term_mangled, estimate),
+  ) |>
+  ggplot(aes(estimate, term_mangled, color = ethnicity)) +
+    geom_vline(xintercept = 0) +
+    geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                    position = position_dodge(width = 0.5), 
+                    alpha = 0.8, size = 0.3) +
+    facet_wrap(vars(ethnicity), scales = "free") +
+    theme_light() + 
+    scale_y_discrete(labels = \(x) str_remove(x, "^.*//")) +
+    scale_color_manual(values = c("orange2", "seagreen")) +
+    labs(
+      x = "", y = "",
+      title = "Effects of polygenic scores on fertility"
+    ) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      legend.position = "none",
+      axis.text.y = element_text(size = 7),
+      strip.text = element_text(colour = "black", size = 10),
+      strip.background = element_rect(fill = NA)
+    )
+```
+
+```{r}
+#| label: fig-siblings
+#| fig-cap: |
+#|   Scatterplot of PGS effect sizes on number of live siblings and years of
+#|   education. Controls include 10 principal components of genetic array
+#|   data. Dashed lines show linear regressions.
+#| fig-subcap:
+#|   - ""
+#|   - ""
+#| layout-nrow: 2
+#| column: page
+
+for (eth in eths) {
+  ggp <-  
+    tidy_pgs_sibs[[eth]] |> 
+    inner_join(tidy_pgs_ed[[eth]], 
+               by = join_by(term), suffix = c(".sibs", ".edyrs")) |> 
+    ggplot(aes(estimate.edyrs, estimate.sibs)) +
+      geom_hline(yintercept = 0, color = "grey80") +
+      geom_vline(xintercept = 0, color = "grey80") +
+      geom_point() +
+      geom_smooth(method = "lm", formula = y ~ x, se = FALSE, 
+                  linetype = "dashed", colour = "red", linewidth = 0.5) +
+      coord_cartesian(xlim = c(-.3, .75)) +
+      theme_light() + 
+      theme(panel.grid = element_blank()) +
+      labs(
+          title = eth,
+          x = "Effect on years of education",
+          y = "Effect on number of siblings"
+      )
+  print(ggp)
+}
+
+```
+
+\FloatBarrier
 
 # Bibliography
