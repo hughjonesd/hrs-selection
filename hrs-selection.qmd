@@ -30,7 +30,8 @@ knitr:
 bibliography: bibliography-hrs.bib
 ---
 
-```{r setup}
+```{r}
+#| label: setup
 
 
 # TODO: use survey package
@@ -133,7 +134,9 @@ shorten <- function (x) {
   x_short
 }
 
-calc_income <- function (x) {
+
+calc_income <- function (x, eth) {
+  x <- x |> filter(ethnicity == eth)
   ages <- x |> select(matches("r\\d+agey_e"))
   income <- x |> select(matches("r\\d+iearn"))
   income <- rowMeans(income, na.rm = TRUE)
@@ -141,6 +144,14 @@ calc_income <- function (x) {
   income_r <- income_r - min(income_r) + 1
 
   income_r
+}
+
+
+calc_n <- function (mods, eths = c("black", "white"), format = "(N = %s)") {
+  nobs <- map_dbl(eths, \(x) nobs(mods[[x]][[1]]) ) 
+  if (! is.null(format)) nobs <- sprintf(format, nobs)
+  names(nobs) <- eths
+  nobs
 }
 
 
@@ -192,62 +203,56 @@ for (eth in eths) {
            ) |>
     names()
 
-  pcs <- c(paste0("PC1_5", LETTERS[1:5]), paste0("PC6_10", LETTERS[1:5]))
-
-  rand <- inner_join(rand_orig, pgen,
+  rands[[eth]] <- inner_join(rand_orig, pgen,
                      join_by(hhid, pn),
                      unmatched = "drop",
                      relationship = "one-to-one")
+}
 
-  rand <- rand |> left_join(rand_fam, 
-                            by = join_by(hhid, pn),
-                            unmatched = "drop",
-                            relationship = "one-to-one")
-  rand <- rand |>
-    mutate(.by = rabyear,
-      mean_raevbrn = mean(raevbrn, na.rm = TRUE),
-      rlrs = raevbrn/mean_raevbrn
-    ) |>
-    mutate(
-      income_resid = calc_income(rand),
-      income_resid = income_resid - min(income_resid, na.rm = TRUE) + 1,
-      income_med = chop_equally(income_resid, 2, labels = c("Low", "High")),
-      # as.numeric avoids haven.labelled issues:
-      raedyrs = as.numeric(raedyrs),
-      edu = chop(as.numeric(raedyrs), 13, lbl_discrete(symbol = "-")),
-      # wave 10 is 2010
-      # table(rands$white$r10mstat)
-       # 1                 1.married
-       # 2   2.married,spouse absent
-       # 3               3.partnered
-       # 4               4.separated
-       # 5                5.divorced
-       # 6      6.separated/divorced
-       # 7                 7.widowed
-       # 8           8.never married
-      married = factor(r10mstat == 1, 
-                       levels = c(FALSE, TRUE),
-                       labels = c("Other", "Married")),
+rand <- list_rbind(rands, names_to = "ethnicity")
+
+rand <- rand |> left_join(rand_fam, 
+                          by = join_by(hhid, pn),
+                          unmatched = "drop",
+                          relationship = "one-to-one")
+rand <- rand |>
+  mutate(.by = rabyear, # calculate this pooling ethnicity
+    mean_raevbrn = mean(raevbrn, na.rm = TRUE),
+    rlrs = raevbrn/mean_raevbrn
+  ) |>
+  mutate(.by = ethnicity, # calculate these stats within-ethnicity
+    income_resid = calc_income(rand, ethnicity[1]),
+    income_resid = income_resid - min(income_resid, na.rm = TRUE) + 1,
+    income_med = chop_equally(income_resid, 2, labels = c("Low", "High")),
+    # as.numeric avoids haven.labelled issues:
+    raedyrs = as.numeric(raedyrs),
+    edu = chop(as.numeric(raedyrs), 13, lbl_discrete(symbol = "-")),
+    # wave 10 is 2010
+    # table(rands$white$r10mstat)
+     # 1                 1.married
+     # 2   2.married,spouse absent
+     # 3               3.partnered
+     # 4               4.separated
+     # 5                5.divorced
+     # 6      6.separated/divorced
+     # 7                 7.widowed
+     # 8           8.never married
+    married = factor(r10mstat == 1, 
+                     levels = c(FALSE, TRUE),
+                     labels = c("Other", "Married")),
     r10sibs = r10livsib + r10sbdied,
     agefb = r10agey_e - h10ageokid,
     agefb = ifelse(agefb < 12, NA_real_, agefb),
     agefb = chop_equally(agefb, 2, labels = c("Low", "High"))
   )
-  
-  # did this to check if white larger sample size drove result sizes; 
-  # it didn't:
-  # rand <- rand |> slice_sample(n = 3100)
 
-  # two of four Alzheimer's variants with awkward names:
-  pgs <- str_replace(pgs, "^01", "ALZ_01")
-  names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
-  
-  # weighting
-  rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
-  rand$weight <- ifelse(! is.na(rand$MBIOWGTR), rand$MBIOWGTR, rand$NBIOWGTR)
-  
-  rands[[eth]] <- rand
-}
+# two of four Alzheimer's variants with awkward names:
+pgs <- str_replace(pgs, "^01", "ALZ_01")
+names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
+
+# weighting
+rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
+rand$weight <- ifelse(! is.na(rand$MBIOWGTR), rand$MBIOWGTR, rand$NBIOWGTR)
 
 
 ```
@@ -279,7 +284,9 @@ The HRS contains weights which match survey respondents to the US population. I 
 
 # Results
 
-```{r stat-regressions}
+```{r}
+#| label: stat-regressions
+#| cache: true
 
 tidy_pgs <- mod_pgs <- list()
 tidy_pgs_ed <- mod_pgs_edyrs <- list()
@@ -291,12 +298,14 @@ tidy_pgs_x_agefb <- mod_pgs_x_agefb <- list()
 
 cors_fert_edu <- tidy_pgs_joined <- list()
 cors_sibs_edu <- list()
+cor_fert_edu_phen <- list()
+
 for (eth in eths) {
-  rand <- rands[[eth]]
+  r_eth <- rand |> filter(ethnicity == eth)
 
   form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
   mod_pgs[[eth]] <- map(form_pgs, 
-                        \(x) lm(x, data = rand, weights = weight)
+                        \(x) lm(x, data = r_eth, weights = weight)
                         )
   
   tidy_pgs[[eth]] <- mod_pgs[[eth]] |> 
@@ -307,7 +316,7 @@ for (eth in eths) {
   form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
                                               response = "raedyrs"))
   mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
-                              \(x) lm(x, data = rand, weights = weight)
+                              \(x) lm(x, data = r_eth, weights = weight)
                               )
   
   tidy_pgs_ed[[eth]] <- mod_pgs_edyrs[[eth]] |>  
@@ -327,7 +336,7 @@ for (eth in eths) {
   form_pgs_sibs <- map(pgs, 
                        \(x) reformulate(c(x, pcs), response = "r10sibs"))
   mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
-                             \(x) lm(x, data = rand, 
+                             \(x) lm(x, data = r_eth, 
                                      weights = weight/(1 + r10sibs)))
   
   tidy_pgs_sibs[[eth]] <- mod_pgs_sibs[[eth]] |> 
@@ -343,7 +352,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "edu", pcs), response = "raevbrn"))
   mod_pgs_x_ed[[eth]]  <-
     map(form_pgs_x_ed, 
-        \(x) lm(x, data = rand, weights = weight)
+        \(x) lm(x, data = r_eth, weights = weight)
         )
   
   tidy_pgs_x_ed[[eth]] <-
@@ -358,7 +367,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "income_med", pcs), response = "raevbrn"))
   mod_pgs_x_inc[[eth]]  <-
     map(form_pgs_x_inc, 
-        \(x) lm(x, data = rand, weights = weight)
+        \(x) lm(x, data = r_eth, weights = weight)
         )
   
   tidy_pgs_x_inc[[eth]] <-
@@ -374,7 +383,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "married", pcs), response = "raevbrn"))
   mod_pgs_x_mar[[eth]]  <-
     map(form_pgs_x_mar, 
-        \(x) lm(x, data = rands[[eth]], weights = weight)
+        \(x) lm(x, data = r_eth, weights = weight)
         )
   
   tidy_pgs_x_mar[[eth]] <-
@@ -391,7 +400,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "agefb", pcs), response = "raevbrn"))
   mod_pgs_x_agefb[[eth]]  <-
     map(form_pgs_x_agefb, 
-        \(x) lm(x, data = rands[[eth]], weights = weight)
+        \(x) lm(x, data = r_eth, weights = weight)
         )
   
   tidy_pgs_x_agefb[[eth]] <-
@@ -403,6 +412,10 @@ for (eth in eths) {
       agefb = str_remove(term, ".*:agefb")
     ) 
   
+  cor_fert_edu_phen[[eth]] <- 
+    lm(raevbrn ~ raedyrs, data = r_eth, weights = weight) |> 
+    coef() |> 
+    pluck("raedyrs")
 }
 
 
@@ -411,15 +424,6 @@ tidy_pgs_eth <- bind_rows(tidy_pgs,  .id = "ethnicity")
 n_tests <- nrow(tidy_pgs_eth)
 n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 if (n_sig_bonf != 1) stop("More/less than 1 score was Bonferroni significant")
-
-cor_fert_edu_phen <- list()
-for (eth in eths) {
-  cor_fert_edu_phen[[eth]] <- lm(raevbrn ~ raedyrs, data = rands[[eth]],
-                                 weights = weight) |> 
-    coef() |> 
-    pluck("raedyrs")
-}
-
 
 ```
 
@@ -432,26 +436,27 @@ Appendix @fig-fertility shows effect sizes of PGS correlations with realised fer
 n_reps <- 599
 cors_boot <- list()
 for (eth in eths) {
-  rand_short <- rands[[eth]] |> 
-    select(all_of(pgs), all_of(pcs), raevbrn, raedyrs, weight, live_sibs)
+  rand_short <- rand |> 
+    filter(ethnicity == eth) |> 
+    select(all_of(pgs), all_of(pcs), raevbrn, raedyrs, weight, r10sibs)
   cors_boot[[eth]] <-
     replicate(n_reps, {
-      rand <- rand_short |> 
+      r_boot <- rand_short |> 
               slice_sample(prop = 1, replace = TRUE)
       
       coef_pgs_fert <- pgs |> 
         map(\(x) reformulate(c(x, pcs), response = "raevbrn")) |> 
-        map(\(x) lm(x, data = rand, weights = weight)) |> 
+        map(\(x) lm(x, data = r_boot, weights = weight)) |> 
         map_dbl(\(x) coef(x)[[2]])
       
       coef_pgs_sibs <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "live_sibs")) |> 
-        map(\(x) lm(x, data = rand, weights = weight/(live_sibs + 1))) |> 
+        map(\(x) reformulate(c(x, pcs), response = "r10sibs")) |> 
+        map(\(x) lm(x, data = r_boot, weights = weight/(r10sibs + 1))) |> 
         map_dbl(\(x) coef(x)[[2]])
       
       coef_pgs_edyrs <- pgs |> 
         map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
-        map(\(x) lm(x, data = rand, weights = weight)) |> 
+        map(\(x) lm(x, data = r_boot, weights = weight)) |> 
         map_dbl(\(x) coef(x)[[2]])
       
       c(fert_edyrs = cor(coef_pgs_fert, coef_pgs_edyrs),
@@ -461,7 +466,7 @@ for (eth in eths) {
 
 tails_boot_fert <- map(cors_boot, 
                        \(x) quantile(x["fert_edyrs", ], c(0.025, 0.975)))
-
+ 
 tails_boot_sibs <- map(cors_boot,
                        \(x) quantile(x["sibs_edyrs", ], c(0.025, 0.975)))
   
@@ -555,8 +560,8 @@ form_pgs_x_mar <- paste0(pgs, ":married")  |>
 coefs_boot_ed <- coefs_boot_inc <- coefs_boot_mar <- list()
 
 for (eth in eths) {
-  rand <- rands[[eth]]
-  rand_short <- rands[[eth]] |> 
+  rand_short <- rand |> 
+    filter(ethnicity == eth) |> 
     select(
       all_of(pgs), all_of(pcs), 
       raevbrn, raedyrs, weight, income_med, edu, married
@@ -773,19 +778,18 @@ The results here provide qualified support for the economic theory of fertility 
 ```{r}
 #| label: fig-cohorts
 #| fig-cap: Distribution of birth years for the sample
-#| fig-subcap:
-#|   - ""
-#|   - ""
-#| layout-nrow: 2
-#| column: page
 
-for (eth in eths) {
-  ggp <- ggplot(rands[[eth]], aes(rabyear)) + 
-    geom_bar() +
-    theme_minimal() +
-    labs(x = "Birth year", y = "Count", title = titles[[eth]])
-  print(ggp)
-}
+rand |> 
+    mutate(
+      Ethnicity = fct_relevel(titles[ethnicity], "White", "Black")
+    ) |> 
+    ggplot(aes(rabyear, fill = Ethnicity)) + 
+      geom_bar(position = "identity") +
+      labs(x = "Birth year", y = "Count") +
+      scale_fill_manual(values = c(Black = "orange2", White = "steelblue4")) +
+      theme_minimal() +
+      theme(legend.title = element_blank())  
+
 ```
 
 ```{r}
@@ -841,6 +845,8 @@ tidy_pgs_eth |>
 #|   - ""
 #| layout-nrow: 2
 #| column: page
+
+for (eth in eths) {}
 
 for (eth in eths) {
   ggp <-  
