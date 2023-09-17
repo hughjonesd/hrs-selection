@@ -45,6 +45,8 @@ bibliography: bibliography-hrs.bib
 # the scores are not independent, does it really make sense to aggregate
 # a general size comparison? Or am I secretly just reproducing my own
 # crappy standard errors?
+# 
+# TODO: is ADHD reverse-coded? What about XDISORDER?
 
 options(digits = 3)
 set.seed(271075)
@@ -450,7 +452,6 @@ n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 if (n_sig_bonf != 0) stop("More/less than 0 score was Bonferroni significant")
 
 ```
-
 Appendix @fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and no scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
@@ -458,51 +459,42 @@ Appendix @fig-fertility shows effect sizes of PGS correlations with realised fer
 #| cache: true
 
 n_reps <- 599
-cors_boot <- list()
-for (eth in eths) {
-  rand_short <- rand |> 
-    subset(ethnicity == eth)
-  cors_boot[[eth]] <-
-    replicate(n_reps, {
-      # survey package automatically does the right thing
-      # possibly I should be using survey::bootweights
-      # or survey::withReplicates and a function
-      r_boot <- rand_short[sample(nrow(rand_short), replace = TRUE), ]
-      
-      coef_pgs_fert <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "raevbrn")) |> 
-        map(\(x) svyglm(x, r_boot)) |> 
-        map_dbl(\(x) coef(x)[[2]])
-      
-      coef_pgs_sibs <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "r10sibs")) |> 
-        # need to add , weights = weight/(r10sibs + 1)
-        map(\(x) svyglm(x, r_boot)) |> 
-        map_dbl(\(x) coef(x)[[2]])
-      
-      coef_pgs_edyrs <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
-        map(\(x) svyglm(x, r_boot)) |> 
-        map_dbl(\(x) coef(x)[[2]])
-      
-      c(fert_edyrs = cor(coef_pgs_fert, coef_pgs_edyrs),
-        sibs_edyrs = cor(coef_pgs_sibs, coef_pgs_edyrs))
-    })
-}
 
-tails_boot_fert <- map(cors_boot, 
-                       \(x) quantile(x["fert_edyrs", ], c(0.025, 0.975)))
- 
-tails_boot_sibs <- map(cors_boot,
-                       \(x) quantile(x["sibs_edyrs", ], c(0.025, 0.975)))
+calc_cors_edu <- function (weights, data, var) {
+  coef_pgs_fert <- pgs |> 
+        map(\(x) reformulate(c(x, pcs), response = var)) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
   
-if (! all(tails_boot_fert$white < 0)) {
-  stop("Fertility-edu correlation NOT sig at 95% for whites")
+  coef_pgs_edu <- pgs |> 
+        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+  
+  cor(coef_pgs_edu, coef_pgs_fert)
 }
-if (all(tails_boot_fert$black < 0)) {
-  stop("Fertility-edu correlation IS sig at 95% for blacks")
+  
+
+cors_fert_edu <- cors_sibs_edu <- list()
+for (eth in eths) {
+  rand_boot <- rand |> 
+    subset(ethnicity == eth) |> 
+    as.svrepdesign(type = "bootstrap", replicates = n_reps)
+  r_parents_boot <- r_parents |> 
+    subset(ethnicity == eth) |> 
+    as.svrepdesign(type = "bootstrap", replicates = n_reps)
+  
+  cors_fert_edu[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_cors_edu, var = "raevbrn")
+  cors_sibs_edu[[eth]] <- 
+    withReplicates(r_parents_boot, theta = calc_cors_edu,var = "r10sibs")
 }
 
+tails_boot_fert <- map(cors_fert_edu, 
+                       \(x) x + c(-1.96, 1.96) * SE(x))
+
+tails_boot_sibs <- map(cors_sibs_edu, 
+                       \(x) x + c(-1.96, 1.96) * SE(x))
 ```
 
 @fig-fertility-edu plots each PGS's correlation with fertility against its correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white`, bootstrapped 95% C.I. `r tails_boot_fert$white[1]` to `r tails_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black`, bootstrapped 95% C.I. `r tails_boot_fert$black[1]` to `r tails_boot_fert$black[2]`). I use bootstraps so as to make inferences from the sample of individuals, rather than the "sample" of different PGS.
@@ -805,7 +797,7 @@ The results here provide qualified support for the economic theory of fertility 
 #| label: fig-cohorts
 #| fig-cap: Distribution of birth years for the sample
 
-rand |> 
+rand$variables |> 
     mutate(
       Ethnicity = fct_relevel(titles[ethnicity], "White", "Black")
     ) |> 
