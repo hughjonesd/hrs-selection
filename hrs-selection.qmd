@@ -340,8 +340,8 @@ The HRS contains weights which match survey respondents to the US population. I 
 
 ```{r}
 #| label: stat-regressions
-#| cache: true
-#| cache-lazy: false
+
+# cache seems to cause trouble even with cache-lazy: FALSE 
 
 tidy_pgs <- mod_pgs <- list()
 tidy_pgs_ed <- mod_pgs_edyrs <- list()
@@ -596,7 +596,7 @@ I next test part 2 of the theory more directly by interacting PGS with measures 
 #| cache: true
 #| cache-lazy: false
 
-n_reps_x <- 199
+n_reps_x <- 99
 
 
 calc_diff_cor_ed <- function (w, data, term) {
@@ -666,7 +666,9 @@ stopifnot(all(map_lgl(ci_agefb, insignificant)))
 
 @fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents. @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values.
 
-The economic theory implies that correlations between education and fertility should be higher for lower-income/education people, single parents and people who have children earlier. This in turn implies that correlations between PGS effects on education and on fertility should be higher among these groups. I test this with bootstraps, calculating effect sizes and correlations within each pair of groups, and taking the difference between them. Correlations are indeed higher among low- than high-education whites (bootstrapped C.I. for difference in correlations `r ci_ed$white[1]` to `r ci_ed$white[2]`) but for all other pairs of groups the difference is not significantly different from zero. In fact, the width of confidence intervals shows that we lack power to detect all but large differences.
+The economic theory implies that correlations between education and fertility should be higher for lower-income/education people, single parents and people who have children earlier.[^1] This in turn implies that correlations between PGS effects on education and on fertility should be higher among these groups. I test this with bootstraps, calculating effect sizes and correlations within each pair of groups, and taking the difference between them. Correlations are indeed higher among low- than high-education whites (bootstrapped C.I. for difference in correlations `r ci_ed$white[1]` to `r ci_ed$white[2]`) but for all other pairs of groups the difference is not significantly different from zero. In fact, the confidence intervals are so wide that we lack power to detect all but large differences.
+
+[^1]: See @hugh2022human equation (6) and following.
 
 ```{r}
 #| label: fig-x-edu
@@ -793,7 +795,9 @@ tidy_pgs_x_agefb |>
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is little evidence that PGS effects on fertility are larger, or more correlated with effects on education, among low-education or low-income individuals, unmarried parents, or younger parents. This is partly due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible in this data. Lastly, the smaller black sample makes most tests inconclusive for this population.
+The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is little evidence that PGS effects on fertility are larger, or more correlated with effects on education, among low-education or low-income individuals, unmarried parents, or younger parents. This is partly due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible in this data.
+
+Lastly, the smaller black sample makes most tests inconclusive for this population. Most effect sizes, measured in within-ethnicity standard deviations, are larger among black people, which implies that the *proportional* effect of natural selection on PGS scores is larger in this subgroup. But since most PGS are also less predictive of their target phenotypes among black people, this fact is hard to interpret.
 
 \FloatBarrier
 
