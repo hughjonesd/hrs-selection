@@ -34,17 +34,9 @@ bibliography: bibliography-hrs.bib
 #| label: setup
 
 
-# TODO: use survey package
-# here's some useful code https://github.com/ajdamico/asdfree/blob/master/27-hrs.Rmd
-# TODO (related) move away from lists and towards a single datasource with an
-# "ethnicity" column; results from broom::tidy can still be in lists?
-
 # TODO: ratio to family poverty threshold, h10inpovr
-
-# TODO: think about your bootstraps, what's the test... given that 
-# the scores are not independent, does it really make sense to aggregate
-# a general size comparison? Or am I secretly just reproducing my own
-# crappy standard errors?
+# 
+# TODO: is ADHD reverse-coded? What about XDISORDER?
 
 options(digits = 3)
 set.seed(271075)
@@ -57,6 +49,8 @@ library(purrr)
 library(ggplot2)
 library(tidyr)
 library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
+ # masks dotchart:
+suppressPackageStartupMessages(library(survey, warn.conflicts = FALSE))
 
 nice_names <- c(
   SCZ         = "Schizophrenia",
@@ -140,8 +134,10 @@ calc_income <- function (x, eth) {
   ages <- x |> select(matches("r\\d+agey_e"))
   income <- x |> select(matches("r\\d+iearn"))
   income <- rowMeans(income, na.rm = TRUE)
-  income_r <- resid(lm(income ~ factor(x$rabyear), weights = x$weight))
-  income_r <- income_r - min(income_r) + 1
+  mod <- lm(income ~ factor(x$rabyear), weights = x$weight, na.action =
+              na.exclude)
+  income_r <- resid(mod)
+  income_r <- income_r - min(income_r, na.rm = TRUE) + 1
 
   income_r
 }
@@ -154,6 +150,16 @@ calc_n <- function (mods, eths = c("black", "white"), format = "(N = %s)") {
   nobs
 }
 
+# avoid warnings about zero weights
+svyglm_quiet <- function (...) suppressWarnings(svyglm(...))
+
+# for a confidence interval
+significant <- function (x) {
+  stopifnot(is.numeric(x), length(x) == 2)
+  x[1] < 0 && x[2] > 0
+}
+
+insignificant <- Negate(significant)
 
 # rand HRS longit data. VERY BIG
 # Done just once:
@@ -198,6 +204,8 @@ for (eth in eths) {
                      relationship = "one-to-one")
 }
 
+rand <- list_rbind(rands, names_to = "ethnicity")
+
 pgs <- pgen4e |>
     rename_with(shorten) |> 
     # weird that I have to operate on whole df to use select semantics
@@ -211,12 +219,21 @@ pgs <- pgen4e |>
            ) |>
     names()
 
-rand <- list_rbind(rands, names_to = "ethnicity")
+
 
 rand <- rand |> left_join(rand_fam, 
                           by = join_by(hhid, pn),
                           unmatched = "drop",
                           relationship = "one-to-one")
+
+# weighting
+rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
+rand$weight <- ifelse(is.na(rand$MBIOWGTR), rand$NBIOWGTR, rand$MBIOWGTR)
+# compensate for fecund parents more likely to have child in survey.
+# we use living sibs rather than including dead sibs too here. I think that's
+# the correct approach:
+rand$parent_weight <- rand$weight / (rand$r10livsib + 1)
+
 rand <- rand |>
   mutate(.by = rabyear, # calculate this pooling ethnicity
     mean_raevbrn = mean(raevbrn, na.rm = TRUE),
@@ -242,7 +259,7 @@ rand <- rand |>
     married = factor(r10mstat == 1, 
                      levels = c(FALSE, TRUE),
                      labels = c("Other", "Married")),
-    r10sibs = r10livsib + r10sbdied,
+    r10sibs = r10livsib + r10sbdied + 1, # n. sibs including oneself!
     agefb = r10agey_e - h10ageokid,
     agefb = ifelse(agefb < 12, NA_real_, agefb),
     agefb = chop_equally(agefb, 2, labels = c("Low", "High"))
@@ -252,11 +269,33 @@ rand <- rand |>
 pgs <- str_replace(pgs, "^01", "ALZ_01")
 names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 
-# weighting
-rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
-rand$weight <- ifelse(! is.na(rand$MBIOWGTR), rand$MBIOWGTR, rand$NBIOWGTR)
 
+rand <- rand |> 
+  select(ethnicity, all_of(pgs), all_of(pcs), weight, raevbrn, raedyrs,
+         r10sibs, edu, income_med, married, agefb, rabyear,
+         raehsamp, raestrat, parent_weight)
 
+r_parents <- svydesign(
+    id = ~ raehsamp,
+		strata = ~ raestrat,
+		weights = ~ parent_weight, 
+		nest = TRUE,
+		data = rand |> drop_na(parent_weight) 
+		)
+
+rand <- svydesign(
+    id = ~ raehsamp,
+		strata = ~ raestrat,
+		weights = ~ weight, 
+		nest = TRUE,
+		data = rand |> drop_na(weight) 
+		)
+
+n_white <- nrow(rand |> subset(ethnicity == "white"))
+n_black <- nrow(rand |> subset(ethnicity == "black"))
+
+# clean up cache so it doesn't get too big
+rm(rand_orig, trk_orig, rands, rand_fam)
 ```
 
 @hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components.
@@ -266,7 +305,7 @@ rand$weight <- ifelse(! is.na(rand$MBIOWGTR), rand$MBIOWGTR, rand$NBIOWGTR)
 
 The evidence for point 1 is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against. And vice versa, scores which correlate positively with human capital are being selected for. The evidence for point 2 is that correlations with number of children are larger and more significant among people with lower income, less education and single parents.
 
-Here, I test the same theory in the US population, using the Health and Retirement Survey (HRS; XXX). This gives an independent test of the theory. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. Also, the HRS provides precalculated polygenic scores (XXX Aysu) for both black and (non-hispanic) white participants, so I can check whether the human capital theory of natural selection works in both these ethnicities.
+Here, I test the same theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. This gives an independent test of the theory. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. Also, the HRS provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so I can check whether the human capital theory of natural selection works in both these ethnicities.
 
 Economic theory treats all humans as the same. Once you have controlled appropriately for people's preferences, resources and beliefs, there should be no difference between ethnicities. So, the economic theory of fertility predicts that patterns of natural selection should be the same in both white and black ethnic groups. Of course, ethnic groups may have different economic characteristics. Also, most of the polygenic scores were created using people of European ancestry. This means they are less predictive for people with African ancestry. If natural selection works via scores' correlation with phenotypes, then we would expect these correlations to be smaller among black people.
 
@@ -276,7 +315,7 @@ The HRS sample focuses on cohorts born between 1920 and 1960, but contains some 
 
 TODO: I think for all these guys, the raevborn question will have been asked by the time they were indeed over 45/40. Double check.
 
-The resulting sample contains `r nrow(rands$white)` genotyped white participants and `r nrow(rands$black)` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I use polygenic scores (PGS) precalculated by XXX. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth).
+The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth).
 
 PGS are rescaled to zero mean and unit variance within each ethnic group, so effect sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten principal components of the DNA array data.
 
@@ -289,6 +328,7 @@ The HRS contains weights which match survey respondents to the US population. I 
 ```{r}
 #| label: stat-regressions
 #| cache: true
+#| cache-lazy: false
 
 tidy_pgs <- mod_pgs <- list()
 tidy_pgs_ed <- mod_pgs_edyrs <- list()
@@ -303,11 +343,12 @@ cors_sibs_edu <- list()
 cor_fert_edu_phen <- list()
 
 for (eth in eths) {
-  r_eth <- rand |> filter(ethnicity == eth)
-
+  r_eth <- rand |> subset(ethnicity == eth)
+  r_parents_eth <- r_parents |> subset(ethnicity == eth)
+  
   form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
   mod_pgs[[eth]] <- map(form_pgs, 
-                        \(x) lm(x, data = r_eth, weights = weight)
+                        \(x) svyglm_quiet(x, r_eth)
                         )
   
   tidy_pgs[[eth]] <- mod_pgs[[eth]] |> 
@@ -318,7 +359,7 @@ for (eth in eths) {
   form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
                                               response = "raedyrs"))
   mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
-                              \(x) lm(x, data = r_eth, weights = weight)
+                              \(x) svyglm_quiet(x, r_eth)
                               )
   
   tidy_pgs_ed[[eth]] <- mod_pgs_edyrs[[eth]] |>  
@@ -334,12 +375,10 @@ for (eth in eths) {
   cors_fert_edu[[eth]] <- cor(tidy_pgs_joined[[eth]]$estimate.edyrs, 
                      tidy_pgs_joined[[eth]]$estimate.fert)
 
-  
   form_pgs_sibs <- map(pgs, 
                        \(x) reformulate(c(x, pcs), response = "r10sibs"))
   mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
-                             \(x) lm(x, data = r_eth, 
-                                     weights = weight/(1 + r10sibs)))
+                             \(x) svyglm_quiet(x, r_parents_eth))
   
   tidy_pgs_sibs[[eth]] <- mod_pgs_sibs[[eth]] |> 
     map(broom::tidy, conf.int = TRUE, conf.level = 0.95) |>
@@ -354,7 +393,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "edu", pcs), response = "raevbrn"))
   mod_pgs_x_ed[[eth]]  <-
     map(form_pgs_x_ed, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm_quiet(x, r_eth)
         )
   
   tidy_pgs_x_ed[[eth]] <-
@@ -369,7 +408,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "income_med", pcs), response = "raevbrn"))
   mod_pgs_x_inc[[eth]]  <-
     map(form_pgs_x_inc, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm_quiet(x, r_eth)
         )
   
   tidy_pgs_x_inc[[eth]] <-
@@ -385,7 +424,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "married", pcs), response = "raevbrn"))
   mod_pgs_x_mar[[eth]]  <-
     map(form_pgs_x_mar, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm_quiet(x, r_eth)
         )
   
   tidy_pgs_x_mar[[eth]] <-
@@ -402,7 +441,7 @@ for (eth in eths) {
     map(\(x) reformulate(c(x, "agefb", pcs), response = "raevbrn"))
   mod_pgs_x_agefb[[eth]]  <-
     map(form_pgs_x_agefb, 
-        \(x) lm(x, data = r_eth, weights = weight)
+        \(x) svyglm_quiet(x, r_eth)
         )
   
   tidy_pgs_x_agefb[[eth]] <-
@@ -415,7 +454,7 @@ for (eth in eths) {
     ) 
   
   cor_fert_edu_phen[[eth]] <- 
-    lm(raevbrn ~ raedyrs, data = r_eth, weights = weight) |> 
+    svyglm_quiet(raevbrn ~ raedyrs, r_eth) |> 
     coef() |> 
     pluck("raedyrs")
 }
@@ -425,65 +464,65 @@ tidy_pgs_eth <- bind_rows(tidy_pgs,  .id = "ethnicity")
 
 n_tests <- nrow(tidy_pgs_eth)
 n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
-if (n_sig_bonf != 1) stop("More/less than 1 score was Bonferroni significant")
+if (n_sig_bonf != 0) stop("More/less than 0 score was Bonferroni significant")
+
 
 ```
 
-Appendix @fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
+Appendix @fig-fertility shows effect sizes of PGS correlations with realised fertility among each ethnic group. Standard errors are large because of the relatively low sample sizes, and no scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
 #| label: stat-bootstraps
 #| cache: true
+#| cache-lazy: false
 
 n_reps <- 599
-cors_boot <- list()
-for (eth in eths) {
-  rand_short <- rand |> 
-    filter(ethnicity == eth) |> 
-    select(all_of(pgs), all_of(pcs), raevbrn, raedyrs, weight, r10sibs)
-  cors_boot[[eth]] <-
-    replicate(n_reps, {
-      r_boot <- rand_short |> 
-              slice_sample(prop = 1, replace = TRUE)
-      
-      coef_pgs_fert <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "raevbrn")) |> 
-        map(\(x) lm(x, data = r_boot, weights = weight)) |> 
-        map_dbl(\(x) coef(x)[[2]])
-      
-      coef_pgs_sibs <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "r10sibs")) |> 
-        map(\(x) lm(x, data = r_boot, weights = weight/(r10sibs + 1))) |> 
-        map_dbl(\(x) coef(x)[[2]])
-      
-      coef_pgs_edyrs <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
-        map(\(x) lm(x, data = r_boot, weights = weight)) |> 
-        map_dbl(\(x) coef(x)[[2]])
-      
-      c(fert_edyrs = cor(coef_pgs_fert, coef_pgs_edyrs),
-        sibs_edyrs = cor(coef_pgs_sibs, coef_pgs_edyrs))
-    })
-}
 
-tails_boot_fert <- map(cors_boot, 
-                       \(x) quantile(x["fert_edyrs", ], c(0.025, 0.975)))
- 
-tails_boot_sibs <- map(cors_boot,
-                       \(x) quantile(x["sibs_edyrs", ], c(0.025, 0.975)))
+calc_cors_edu <- function (weights, data, var) {
+  coef_pgs_fert <- pgs |> 
+        map(\(x) reformulate(c(x, pcs), response = var)) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
   
-if (! all(tails_boot_fert$white < 0)) {
-  stop("Fertility-edu correlation NOT sig at 95% for whites")
+  coef_pgs_edu <- pgs |> 
+        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+  
+  cor(coef_pgs_edu, coef_pgs_fert)
 }
-if (all(tails_boot_fert$black < 0)) {
-  stop("Fertility-edu correlation IS sig at 95% for blacks")
+  
+
+cors_fert_edu <- cors_sibs_edu <- list()
+for (eth in eths) {
+  rand_boot <- rand |> 
+    subset(ethnicity == eth) |> 
+    as.svrepdesign(type = "bootstrap", replicates = n_reps)
+  r_parents_boot <- r_parents |> 
+    subset(ethnicity == eth) |> 
+    as.svrepdesign(type = "bootstrap", replicates = n_reps)
+  
+  cors_fert_edu[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_cors_edu, var = "raevbrn")
+  cors_sibs_edu[[eth]] <- 
+    withReplicates(r_parents_boot, theta = calc_cors_edu,var = "r10sibs")
 }
 
+tails_boot_fert <- map(cors_fert_edu, 
+                       \(x) x + c(-1.96, 1.96) * SE(x))
+
+tails_boot_sibs <- map(cors_sibs_edu, 
+                       \(x) x + c(-1.96, 1.96) * SE(x))
+
+
+stopifnot(significant(tails_boot_fert$white))
+stopifnot(insignificant(tails_boot_fert$black))
+stopifnot(all(map_lgl(tails_boot_sibs, insignificant)))
 ```
 
 @fig-fertility-edu plots each PGS's correlation with fertility against its correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white`, bootstrapped 95% C.I. `r tails_boot_fert$white[1]` to `r tails_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black`, bootstrapped 95% C.I. `r tails_boot_fert$black[1]` to `r tails_boot_fert$black[2]`). I use bootstraps so as to make inferences from the sample of individuals, rather than the "sample" of different PGS.
 
-The relationship is imprecisely estimated in the smaller black sample, but it is also steeper. Put another way, if we measured PGS in units of "years of associated education", estimated selection effects would be larger among blacks than whites. If this holds in the population, one reason may be that the correlation between phenotypic years of education and fertility is larger for blacks than for whites. In bivariate regressions, an extra year of education reduces fertility by `r cor_fert_edu_phen$white` for whites and `r cor_fert_edu_phen$black` for blacks [cf. @goldscheider1969minority; @johnson1979minority; @yang2003big]. In turn, the simplest explanation for this fact would be point 2 of the theory. Because black people on average have lower incomes and fewer years of education, and are more likely to be single parents, the fertility-wage tradeoff is especially acute for them.
+The relationship is imprecisely estimated in the smaller black sample, but it is also steeper. Put another way, if we measured PGS in units of "years of associated education", estimated selection effects would be larger among blacks than whites. If this holds in the population, one reason may be that the correlation between phenotypic years of education and fertility is larger for blacks than for whites. In bivariate regressions, an extra year of education reduces fertility by `r cor_fert_edu_phen$white` for whites and `r cor_fert_edu_phen$black` for blacks [cf. @goldscheider1969minority; @johnson1979minority; @yang2003big]. In turn, the simplest explanation for this fact would be point 2 of the theory. Because black people on average have lower incomes and fewer years of education, and are more likely to be single parents, the fertility-wage tradeoff is especially acute for them [cf. @maralani2013demography].
 
 ```{r}
 #| label: fig-fertility-edu
@@ -537,112 +576,89 @@ cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
 if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so effect sizes are not comparable across the generations. Appendix @fig-siblings plots effects on number of siblings versus effects on years of education. The correlation is negative and significant for whites (correlation `r cors_sibs_edu$white`, bootstrapped 95% C.I. `r tails_boot_sibs$white[1]` to `r tails_boot_sibs$white[2]`). It is positive for blacks (correlation `r cors_sibs_edu$black`), although this is driven by two outlier PGS, which are scores for Alzheimer's with all SNPs included; without these, the correlation is negative.
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so effect sizes are not comparable across the generations. Appendix @fig-siblings plots effects on number of siblings versus effects on years of education. Correlations are insignificant for both ethnic groups.
 
 I next test part 2 of the theory more directly by interacting PGS with measures of education, income and marital status. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split.
 
 ```{r}
-#| label: stat-x-edu-bootstraps
+#| label: stat-x-bootstraps
 #| cache: true
+#| cache-lazy: false
 
-n_reps <- 199
+n_reps_x <- 199
 
-cross_terms <- function (x) {
-  cx <- coef(x)
-  cx[str_detect(names(cx), ":")]
+
+calc_diff_cor_ed <- function (w, data, term) {
+  groups <- switch(term,
+                edu = c("0-12", "13-17"),
+                income_med = c("Low", "High"),
+                married = c("Other", "Married"),
+                agefb = c("Low", "High"))
+  groups <- paste0(":", term, groups) # colon for the cross term
+  low_group <- groups[1]
+  high_group <- groups[2]
+  
+  forms <- paste0(pgs, ":", term) |>
+    map(\(x) reformulate(c(x, term, pcs), response = "raevbrn"))
+  mods <- map(forms, \(x) lm(x, data, weights = w))
+  cfs <- map(mods, coef)
+  cfs_low <- map_dbl(cfs, \(x) x[str_detect(names(x), low_group)])
+  cfs_high <- map_dbl(cfs, \(x) x[str_detect(names(x), high_group)])
+  
+  forms_ed <- paste0(pgs, ":", term)  |> 
+    map(\(x) reformulate(c(x, term, pcs), response = "raedyrs"))
+  mods_ed <- forms_ed |> map(\(x) lm(x, data, weights = w))
+  cfs_ed <- map(mods_ed, coef)
+  cfs_ed_low <- map_dbl(cfs_ed, \(x) x[str_detect(names(x), low_group)])
+  cfs_ed_high <- map_dbl(cfs_ed, \(x) x[str_detect(names(x), high_group)])
+  
+  cor_ed_low <- cor(cfs_low, cfs_ed_low)
+  cor_ed_high <- cor(cfs_high, cfs_ed_high)
+  
+  cor_ed_low - cor_ed_high
 }
 
-form_pgs_x_ed <- paste0(pgs, ":edu") |>
-    map(\(x) reformulate(c(x, "edu", pcs), response = "raevbrn"))
-form_pgs_x_inc <- paste0(pgs, ":income_med")  |>
-    map(\(x) reformulate(c(x, "income_med", pcs), response = "raevbrn"))
-form_pgs_x_mar <- paste0(pgs, ":married")  |>
-    map(\(x) reformulate(c(x, "married", pcs), response = "raevbrn"))
-
-coefs_boot_ed <- coefs_boot_inc <- coefs_boot_mar <- list()
+diff_cor_ed_ed <- diff_cor_ed_inc <- diff_cor_ed_mar <- diff_cor_ed_agefb <-
+  list()
 
 for (eth in eths) {
-  rand_short <- rand |> 
-    filter(ethnicity == eth) |> 
-    select(
-      all_of(pgs), all_of(pcs), 
-      raevbrn, raedyrs, weight, income_med, edu, married
-    )
+  rand_boot <- rand |> 
+    subset(ethnicity == eth) |> 
+    as.svrepdesign(type = "bootstrap", replicates = n_reps_x)
   
-  coefs_boot_ed[[eth]] <- replicate(n_reps, {
-    rand_r <- slice_sample(rand_short, prop = 1, replace = TRUE)
-    map(form_pgs_x_ed, 
-        \(x) lm(x, data = rand_r, weights = weight)
-        ) |> 
-      map(cross_terms) |> 
-      unlist()
-  })
-  
-  coefs_boot_inc[[eth]]  <- replicate(n_reps, {
-    rand_r <- slice_sample(rand_short, prop = 1, replace = TRUE)
-    map(form_pgs_x_inc, 
-          \(x) lm(x, data = rand_r, weights = weight)
-          ) |> 
-      map(cross_terms) |> 
-      unlist()
-  })
-  
-  coefs_boot_mar[[eth]]  <- replicate(n_reps, {
-    rand_r <- slice_sample(rand_short, prop = 1, replace = TRUE)
-    map(form_pgs_x_mar, 
-          \(x) lm(x, data = rand_r, weights = weight)
-          ) |> 
-      map(cross_terms) |> 
-      unlist()
-  })
-  
-  reorganize <- function (x) {
-   x |> 
-    t() |> 
-    as.data.frame() |> 
-    pivot_longer(everything(), names_to = c("pgs", "group"), 
-                 names_sep = ":") |> 
-    mutate(rep = 1:n_reps, .by = c(pgs, group)) |> 
-    pivot_wider(id_cols = c(pgs, rep), 
-                names_from = group, 
-                values_from = value) 
-  }
-  
-  coefs_boot_ed[[eth]] <- reorganize(coefs_boot_ed[[eth]])
-  coefs_boot_inc[[eth]] <- reorganize(coefs_boot_inc[[eth]])
-  coefs_boot_mar[[eth]] <- reorganize(coefs_boot_mar[[eth]])
+  diff_cor_ed_ed[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "edu")
+  diff_cor_ed_inc[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "income_med")
+  diff_cor_ed_mar[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "married")
+  diff_cor_ed_agefb[[eth]] <-
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "agefb")
 }
 
-
-boot_ci <- function (x) {
-  names(x)[3:4] <- c("lo", "hi")
-  x |> 
-    mutate(
-      abs_diff = abs(hi) - abs(lo)
-    ) |> 
-    summarize(
-      mad = mean(abs_diff),
-      .by = rep
-    ) |> 
-    pull(mad) |> 
-    quantile(c(0.025, 0.975))
+confint_workaround <- function (x) {
+  as.numeric(x) + c(-1.96, 1.96) * SE(x)
 }
 
-ci_inc_w <- boot_ci(coefs_boot_inc$white)
-ci_inc_b <- boot_ci(coefs_boot_inc$black)
-ci_ed_w <- boot_ci(coefs_boot_ed$white)
-ci_ed_b <- boot_ci(coefs_boot_ed$black)
-ci_mar_w <- boot_ci(coefs_boot_mar$white)
-ci_mar_b <- boot_ci(coefs_boot_mar$black)
+ci_ed <- map(diff_cor_ed_ed, confint_workaround)
+ci_inc <- map(diff_cor_ed_inc, confint_workaround)
+ci_mar <- map(diff_cor_ed_mar, confint_workaround)
+ci_agefb <- map(diff_cor_ed_agefb, confint_workaround)
 
-for (ci in list(ci_inc_w, ci_inc_b, ci_ed_w, ci_ed_b)) {
-  if (prod(sign(ci)) != -1) {
-    stop("effect size IS significantly different across some pair groups")
-  }  
-}
+
+# TODO: does splitting by education to 12 and education 13-16 mechanically
+#   cause a lower correlation with edyrs in the 13-16 group?
+stopifnot(significant(ci_ed$white))
+stopifnot(insignificant(ci_ed$black))
+stopifnot(all(map_lgl(ci_inc, insignificant)))
+stopifnot(all(map_lgl(ci_mar, insignificant)))
+stopifnot(all(map_lgl(ci_agefb, insignificant)))
+
 ```
 
-@fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. However, in bootstrap tests, the median difference in absolute effect sizes is not significantly different from 0, for either ethnic group. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents, and this is significant in bootstraps (95% C.I. for median difference `r ci_mar_w[1]` to `r ci_mar_w[2]`). @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values. TODO test
+@fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents. @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values.
+
+The economic theory implies that correlations between education and fertility should be higher for lower-income/education people, single parents and people who have children earlier. This in turn implies that correlations between PGS effects on education and on fertility should be higher among these groups. I test this with bootstraps, calculating effect sizes and correlations within each pair of groups, and taking the difference between them. Correlations are indeed higher among low- than high-education whites (bootstrapped C.I. for difference in correlations `r ci_ed$white[1]` to `r ci_ed$white[2]`) but for all other pairs of groups the difference is not significantly different from zero. In fact, the width of confidence intervals shows that we lack power to detect all but large differences.
 
 ```{r}
 #| label: fig-x-edu
@@ -769,11 +785,15 @@ tidy_pgs_x_agefb |>
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is no evidence that PGS effects on fertility are larger among people with less education, unlike the UK [@hugh2022human]. And there's not enough evidence to show that effects on fertility are larger for lower-income people. Also, the smaller black sample made most tests inconclusive for this population.
+The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is little evidence that PGS effects on fertility are larger, or more correlated with effects on education, among low-education or low-income individuals, unmarried parents, or younger parents. This is partly due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible in this data. Lastly, the smaller black sample makes most tests inconclusive for this population.
 
 \FloatBarrier
 
 # Appendix
+
+## Acknowledgements
+
+The HRS (Health and Retirement Study) is sponsored by the National Institute on Aging (grant number NIA U01AG009740) and is conducted by the University of Michigan.
 
 ## Figures
 
@@ -781,7 +801,7 @@ The results here provide qualified support for the economic theory of fertility 
 #| label: fig-cohorts
 #| fig-cap: Distribution of birth years for the sample
 
-rand |> 
+rand$variables |> 
     mutate(
       Ethnicity = fct_relevel(titles[ethnicity], "White", "Black")
     ) |> 
@@ -848,7 +868,6 @@ tidy_pgs_eth |>
 #| layout-nrow: 2
 #| column: page
 
-for (eth in eths) {}
 
 for (eth in eths) {
   ggp <-  
