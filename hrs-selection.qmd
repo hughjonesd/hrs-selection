@@ -35,11 +35,6 @@ bibliography: bibliography-hrs.bib
 
 
 # TODO: ratio to family poverty threshold, h10inpovr
-
-# TODO: think about your bootstraps, what's the test... given that 
-# the scores are not independent, does it really make sense to aggregate
-# a general size comparison? Or am I secretly just reproducing my own
-# crappy standard errors?
 # 
 # TODO: is ADHD reverse-coded? What about XDISORDER?
 
@@ -310,7 +305,7 @@ rm(rand_orig, trk_orig, rands, rand_fam)
 
 The evidence for point 1 is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against. And vice versa, scores which correlate positively with human capital are being selected for. The evidence for point 2 is that correlations with number of children are larger and more significant among people with lower income, less education and single parents.
 
-Here, I test the same theory in the US population, using the Health and Retirement Survey (HRS; XXX). This gives an independent test of the theory. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. Also, the HRS provides precalculated polygenic scores (XXX Aysu) for both black and (non-hispanic) white participants, so I can check whether the human capital theory of natural selection works in both these ethnicities.
+Here, I test the same theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. This gives an independent test of the theory. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. Also, the HRS provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so I can check whether the human capital theory of natural selection works in both these ethnicities.
 
 Economic theory treats all humans as the same. Once you have controlled appropriately for people's preferences, resources and beliefs, there should be no difference between ethnicities. So, the economic theory of fertility predicts that patterns of natural selection should be the same in both white and black ethnic groups. Of course, ethnic groups may have different economic characteristics. Also, most of the polygenic scores were created using people of European ancestry. This means they are less predictive for people with African ancestry. If natural selection works via scores' correlation with phenotypes, then we would expect these correlations to be smaller among black people.
 
@@ -320,7 +315,7 @@ The HRS sample focuses on cohorts born between 1920 and 1960, but contains some 
 
 TODO: I think for all these guys, the raevborn question will have been asked by the time they were indeed over 45/40. Double check.
 
-The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I use polygenic scores (PGS) precalculated by XXX. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth).
+The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth).
 
 PGS are rescaled to zero mean and unit variance within each ethnic group, so effect sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten principal components of the DNA array data.
 
@@ -588,23 +583,42 @@ I next test part 2 of the theory more directly by interacting PGS with measures 
 ```{r}
 #| label: stat-x-bootstraps
 #| cache: true
+#| cache-lazy: false
 
 n_reps_x <- 199
 
-median_diff_effect <- function(w, data, term) {
+
+calc_diff_cor_ed <- function (w, data, term) {
+  groups <- switch(term,
+                edu = c("0-12", "13-17"),
+                income_med = c("Low", "High"),
+                married = c("Other", "Married"),
+                agefb = c("Low", "High"))
+  groups <- paste0(":", term, groups) # colon for the cross term
+  low_group <- groups[1]
+  high_group <- groups[2]
+  
   forms <- paste0(pgs, ":", term) |>
     map(\(x) reformulate(c(x, term, pcs), response = "raevbrn"))
-  
   mods <- map(forms, \(x) lm(x, data, weights = w))
   cfs <- map(mods, coef)
-  cross_terms <- map(cfs, \(x) x[str_detect(names(x), ":")])
-  if(any(lengths(cross_terms) != 2)) stop("Extra cross terms")
-  abs_cross_terms <- map(cross_terms, abs)
-  diffs <- map_dbl(abs_cross_terms, diff) 
-  median(diffs)
+  cfs_low <- map_dbl(cfs, \(x) x[str_detect(names(x), low_group)])
+  cfs_high <- map_dbl(cfs, \(x) x[str_detect(names(x), high_group)])
+  
+  forms_ed <- paste0(pgs, ":", term)  |> 
+    map(\(x) reformulate(c(x, term, pcs), response = "raedyrs"))
+  mods_ed <- forms_ed |> map(\(x) lm(x, data, weights = w))
+  cfs_ed <- map(mods_ed, coef)
+  cfs_ed_low <- map_dbl(cfs_ed, \(x) x[str_detect(names(x), low_group)])
+  cfs_ed_high <- map_dbl(cfs_ed, \(x) x[str_detect(names(x), high_group)])
+  
+  cor_ed_low <- cor(cfs_low, cfs_ed_low)
+  cor_ed_high <- cor(cfs_high, cfs_ed_high)
+  
+  cor_ed_low - cor_ed_high
 }
 
-median_diff_ed <- median_diff_inc <- median_diff_mar <- median_diff_agefb <-
+diff_cor_ed_ed <- diff_cor_ed_inc <- diff_cor_ed_mar <- diff_cor_ed_agefb <-
   list()
 
 for (eth in eths) {
@@ -612,30 +626,39 @@ for (eth in eths) {
     subset(ethnicity == eth) |> 
     as.svrepdesign(type = "bootstrap", replicates = n_reps_x)
   
-  median_diff_ed[[eth]] <- 
-    withReplicates(rand_boot, theta = median_diff_effect, term = "edu")
-  median_diff_inc[[eth]] <- 
-    withReplicates(rand_boot, theta = median_diff_effect, term = "income_med")
-  median_diff_mar[[eth]] <- 
-    withReplicates(rand_boot, theta = median_diff_effect, term = "married")
-  median_diff_agefb[[eth]] <-
-    withReplicates(rand_boot, theta = median_diff_effect, term = "agefb")
+  diff_cor_ed_ed[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "edu")
+  diff_cor_ed_inc[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "income_med")
+  diff_cor_ed_mar[[eth]] <- 
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "married")
+  diff_cor_ed_agefb[[eth]] <-
+    withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "agefb")
 }
 
 confint_workaround <- function (x) {
   as.numeric(x) + c(-1.96, 1.96) * SE(x)
 }
 
-ci_ed <- map(median_diff_ed, confint_workaround)
-ci_inc <- map(median_diff_inc, confint_workaround)
-ci_mar <- map(median_diff_mar, confint_workaround)
-ci_agefb <- map(median_diff_agefb, confint_workaround)
+ci_ed <- map(diff_cor_ed_ed, confint_workaround)
+ci_inc <- map(diff_cor_ed_inc, confint_workaround)
+ci_mar <- map(diff_cor_ed_mar, confint_workaround)
+ci_agefb <- map(diff_cor_ed_agefb, confint_workaround)
 
-# TODO: is median_diff really a sensible test to run? 
+
+# TODO: does splitting by education to 12 and education 13-16 mechanically
+#   cause a lower correlation with edyrs in the 13-16 group?
+stopifnot(significant(ci_ed$white))
+stopifnot(insignificant(ci_ed$black))
+stopifnot(all(map_lgl(ci_inc, insignificant)))
+stopifnot(all(map_lgl(ci_mar, insignificant)))
+stopifnot(all(map_lgl(ci_agefb, insignificant)))
 
 ```
 
-@fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. However, in bootstrap tests, the median difference in absolute effect sizes is not significantly different from 0, for either ethnic group. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents. @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values.
+@fig-x-edu shows that for both whites and blacks, there is essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents, for both whites and blacks. @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Among blacks, effect sizes look similar across marital status, but among whites they are larger for unmarried respondents. @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values.
+
+The economic theory implies that correlations between education and fertility should be higher for lower-income/education people, single parents and people who have children earlier. This in turn implies that correlations between PGS effects on education and on fertility should be higher among these groups. I test this with bootstraps, calculating effect sizes and correlations within each pair of groups, and taking the difference between them. Correlations are indeed higher among low- than high-education whites (bootstrapped C.I. for difference in correlations `r ci_ed$white[1]` to `r ci_ed$white[2]`) but for all other pairs of groups the difference is not significantly different from zero. In fact, the width of confidence intervals shows that we lack power to detect all but large differences.
 
 ```{r}
 #| label: fig-x-edu
@@ -762,11 +785,15 @@ tidy_pgs_x_agefb |>
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is no evidence that PGS effects on fertility are larger among people with less education, unlike the UK [@hugh2022human]. And there's not enough evidence to show that effects on fertility are larger for lower-income people. Also, the smaller black sample made most tests inconclusive for this population.
+The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is little evidence that PGS effects on fertility are larger, or more correlated with effects on education, among low-education or low-income individuals, unmarried parents, or younger parents. This is partly due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible in this data. Lastly, the smaller black sample makes most tests inconclusive for this population.
 
 \FloatBarrier
 
 # Appendix
+
+## Acknowledgements
+
+The HRS (Health and Retirement Study) is sponsored by the National Institute on Aging (grant number NIA U01AG009740) and is conducted by the University of Michigan.
 
 ## Figures
 
