@@ -36,7 +36,10 @@ bibliography: bibliography-hrs.bib
 
 # TODO: ratio to family poverty threshold, h10inpovr
 # 
-# TODO: is ADHD reverse-coded? What about XDISORDER?
+# Is ADHD reverse-coded? - Doesn't seem to be, correlates negatively
+#       with income
+# What about XDISORDER?
+# ADHD doesn't seem to be. Nor does XDISORDER (correlates with e.g. r*depres)
 
 options(digits = 3)
 set.seed(271075)
@@ -117,6 +120,7 @@ eths <- c("white", "black")
 
 titles <- c(white = "White", black = "Black")
 
+
 shorten <- function (x) {
   x <- str_remove(x, "^(A4|E4)_")
   x_short <- str_remove(x, "_.*")
@@ -150,16 +154,25 @@ calc_n <- function (mods, eths = c("black", "white"), format = "(N = %s)") {
   nobs
 }
 
+
 # avoid warnings about zero weights
 svyglm_quiet <- function (...) suppressWarnings(svyglm(...))
+
 
 # for a confidence interval
 significant <- function (x) {
   stopifnot(is.numeric(x), length(x) == 2)
-  x[1] < 0 && x[2] > 0
+  all(x < 0) || all(x > 0)
 }
 
+
 insignificant <- Negate(significant)
+
+
+confint_workaround <- function (x) {
+  as.numeric(x) + c(-1.96, 1.96) * SE(x)
+}
+
 
 # rand HRS longit data. VERY BIG
 # Done just once:
@@ -321,7 +334,7 @@ PGS are rescaled to zero mean and unit variance within each ethnic group, so eff
 
 I use realised fertility (number of children ever born) as the key dependent variable. I use this rather than relative lifetime reproductive success for ease of interpretation and because I don't have data for dates when children were born. My focus is on examining patterns of natural selection across PGS, rather than estimating their effects on PGS over time; raw fertility is good enough for this.
 
-The HRS contains weights which match survey respondents to the US population. I use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, I weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012.
+The HRS contains weights which match survey respondents to the US population. I use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, I weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R "survey" package [@lumleysurvey2023].
 
 # Results
 
@@ -508,11 +521,9 @@ for (eth in eths) {
     withReplicates(r_parents_boot, theta = calc_cors_edu,var = "r10sibs")
 }
 
-tails_boot_fert <- map(cors_fert_edu, 
-                       \(x) x + c(-1.96, 1.96) * SE(x))
+tails_boot_fert <- map(cors_fert_edu, confint_workaround)
 
-tails_boot_sibs <- map(cors_sibs_edu, 
-                       \(x) x + c(-1.96, 1.96) * SE(x))
+tails_boot_sibs <- map(cors_sibs_edu, confint_workaround)
 
 
 stopifnot(significant(tails_boot_fert$white))
@@ -636,9 +647,6 @@ for (eth in eths) {
     withReplicates(rand_boot, theta = calc_diff_cor_ed, term = "agefb")
 }
 
-confint_workaround <- function (x) {
-  as.numeric(x) + c(-1.96, 1.96) * SE(x)
-}
 
 ci_ed <- map(diff_cor_ed_ed, confint_workaround)
 ci_inc <- map(diff_cor_ed_inc, confint_workaround)
