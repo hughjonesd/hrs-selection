@@ -64,8 +64,12 @@ library(purrr)
 library(ggplot2)
 library(tidyr)
 library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
+library(future)
+library(furrr)
  # masks dotchart:
 suppressPackageStartupMessages(library(survey, warn.conflicts = FALSE))
+
+plan(multisession, workers = 6)
 
 nice_names <- c(
   SCZ         = "Schizophrenia",
@@ -181,6 +185,7 @@ significant <- function (x) {
 insignificant <- Negate(significant)
 
 
+# workaround failure in confint.svrepdesign
 confint_workaround <- function (x) {
   cbind(
     as.numeric(x) - 1.96 * SE(x), 
@@ -371,9 +376,8 @@ for (eth in eths) {
   r_parents_eth <- r_parents |> subset(ethnicity == eth)
   
   form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-  mod_pgs[[eth]] <- map(form_pgs, 
-                        \(x) svyglm_quiet(x, r_eth)
-                        )
+  mod_pgs[[eth]] <- future_map(form_pgs, 
+                               \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs[[eth]] <- mod_pgs[[eth]] |> 
     map(broom::tidy, conf.int = TRUE, conf.level = 0.95) |> 
@@ -382,9 +386,8 @@ for (eth in eths) {
   
   form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
                                               response = "raedyrs"))
-  mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
-                              \(x) svyglm_quiet(x, r_eth)
-                              )
+  mod_pgs_edyrs[[eth]] <- future_map(form_pgs_edyrs, 
+                                     \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_ed[[eth]] <- mod_pgs_edyrs[[eth]] |>  
     map(broom::tidy) |>
@@ -405,8 +408,8 @@ for (eth in eths) {
   
   form_pgs_sibs <- map(pgs, 
                        \(x) reformulate(c(x, pcs), response = "r10sibs"))
-  mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
-                             \(x) svyglm_quiet(x, r_parents_eth))
+  mod_pgs_sibs[[eth]] <- future_map(form_pgs_sibs,
+                                    \(x) svyglm_quiet(x, r_parents_eth))
   
   tidy_pgs_sibs[[eth]] <- mod_pgs_sibs[[eth]] |> 
     map(broom::tidy, conf.int = TRUE, conf.level = 0.95) |>
@@ -420,9 +423,8 @@ for (eth in eths) {
   form_pgs_x_ed <- paste0(pgs, ":edu") |>
     map(\(x) reformulate(c(x, "edu", pcs), response = "rlrs"))
   mod_pgs_x_ed[[eth]]  <-
-    map(form_pgs_x_ed, 
-        \(x) svyglm_quiet(x, r_eth)
-        )
+    future_map(form_pgs_x_ed, 
+               \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_ed[[eth]] <-
     map(mod_pgs_x_ed[[eth]], broom::tidy, conf.int = TRUE)
@@ -435,9 +437,8 @@ for (eth in eths) {
   form_pgs_x_inc <- paste0(pgs, ":income_med") |>
     map(\(x) reformulate(c(x, "income_med", pcs), response = "rlrs"))
   mod_pgs_x_inc[[eth]]  <-
-    map(form_pgs_x_inc, 
-        \(x) svyglm_quiet(x, r_eth)
-        )
+    future_map(form_pgs_x_inc, 
+               \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_inc[[eth]] <-
     map(mod_pgs_x_inc[[eth]], broom::tidy, conf.int = TRUE)
@@ -447,13 +448,11 @@ for (eth in eths) {
     filter(!term %in% c("(Intercept)", "income_medHigh", pcs)) |>
     mutate(income_med = str_remove(term, ".*:income_med"))
   
-  
   form_pgs_x_mar <- paste0(pgs, ":married") |>
     map(\(x) reformulate(c(x, "married", pcs), response = "rlrs"))
   mod_pgs_x_mar[[eth]]  <-
-    map(form_pgs_x_mar, 
-        \(x) svyglm_quiet(x, r_eth)
-        )
+    future_map(form_pgs_x_mar, 
+               \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_mar[[eth]] <-
     map(mod_pgs_x_mar[[eth]], broom::tidy, conf.int = TRUE)
@@ -468,9 +467,8 @@ for (eth in eths) {
   form_pgs_x_agefb <- paste0(pgs, ":agefb") |>
     map(\(x) reformulate(c(x, "agefb", pcs), response = "rlrs"))
   mod_pgs_x_agefb[[eth]]  <-
-    map(form_pgs_x_agefb, 
-        \(x) svyglm_quiet(x, r_eth)
-        )
+    future_map(form_pgs_x_agefb, 
+               \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_agefb[[eth]] <-
     map(mod_pgs_x_agefb[[eth]], broom::tidy, conf.int = TRUE) |> 
@@ -499,6 +497,10 @@ n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 #| label: stat-bootstrap-eth-cor
 #| cache: true
 #| cache-lazy: false
+#| eval: false
+
+# I don't mention this below so turning it off for now
+# TODO: should I mention it? It's a low correlation.
 
 n_reps_eth_diff <- 99
 rand_boot <- rand |> 
@@ -533,6 +535,10 @@ I estimated coefficients of PGS on RLRS among black and white respondents separa
 #| label: stat-bootstraps
 #| cache: true
 #| cache-lazy: false
+
+# use this rather than future_map, to avoid setup costs.
+# Not sure it actually does anything :-)
+options(survey.multicore = TRUE) 
 
 n_reps <- 599
 
