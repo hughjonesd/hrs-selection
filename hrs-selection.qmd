@@ -7,7 +7,7 @@ abstract: |
   partially support the economic theory of fertility as an explanation for
   natural selection: among both white and black respondents,
   scores which correlate negatively (positively) with education are
-  selected for (against). Selection effects are larger among low-income
+  selected for (against). Selection coefficients are larger among low-income
   and unmarried parents, but not among younger parents or those with less 
   education.
 date: "September 2023"
@@ -341,7 +341,7 @@ The HRS sample focuses on cohorts born between 1920 and 1960, but contains some 
 
 The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs)` scores.
 
-PGS are rescaled to zero mean and unit variance within each ethnic group, so effect sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten within-ethnicity principal components of the DNA array data.
+PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten within-ethnicity principal components of the DNA array data.
 
 The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population.
 
@@ -525,9 +525,9 @@ cor_eths_boot <- withReplicates(rand_boot, theta = calc_eth_cor)
 ci_eths <- confint_workaround(cor_eths_boot)[1,]
 ```
 
-I estimated effect sizes of PGS correlations with RLRS among black and white respondents separately.[^1] Appendix @fig-rlrs shows effect sizes for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
+I estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
-[^1]: Throughout, "effect" is shorthand for "regression coefficient". No claim about causality is implied. Recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility.
+
 
 ```{r}
 #| label: stat-bootstraps
@@ -629,7 +629,7 @@ stopifnot(insignificant(ci_boot_sibs$black))
 ```{r}
 #| label: fig-rlrs-edu
 #| fig-cap: |
-#|   Scatterplot of PGS effect sizes on RLRS and years of
+#|   Scatterplot of PGS regression coefficients on RLRS and years of
 #|   education. Controls include 10 principal components of genetic array
 #|   data. Dashed lines show linear regressions.
 #| fig-subcap:
@@ -653,8 +653,8 @@ for (eth in eths) {
           theme(panel.grid = element_blank()) +
           labs(
             title = titles[eth],
-            x = "Effect on years of education",
-            y = "Effect on RLRS"
+            x = "Coefficient on years of education",
+            y = "Coefficient on RLRS"
           )
   print(ggp)
 }
@@ -678,7 +678,7 @@ cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
 if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so effect sizes are not comparable across the generations. Appendix @fig-siblings plots effects on number of siblings versus effects on years of education. Correlations are insignificant for both ethnic groups, although note that standard errors are large (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`).
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficents on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, although note that standard errors are large (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`).
 
 I next test part 2 of the theory more directly by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
@@ -801,7 +801,7 @@ stopifnot(significant(ci$married[3,]))
 stopifnot(insignificant(ci$agefb[3,]))
 ```
 
-Appendix @fig-x-edu shows essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Effect sizes appear larger for unmarried respondents. Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values. @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute effect sizes in the two groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
+Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents. Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values. @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in the two groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
 
 |               | Low group             | High group            | Difference            |
 |------------------|------------------|------------------|------------------|
@@ -810,15 +810,15 @@ Appendix @fig-x-edu shows essentially no difference in the distribution of absol
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
 | Age 1st birth | `r tbl$agefb[1]`      | `r tbl$agefb[2]`      | `r tbl$agefb[3]`      |
 
-: Bootstrap estimates and 95% confidence intervals for mean absolute effect sizes of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
+: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
 
-The economic theory of fertility in @hugh2022human implies that correlations between education and RLRS should be more negative for lower-income/education people, single parents and people who have children earlier.[^2] This in turn implies that correlations between PGS effects on education and on RLRS should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
+The economic theory of fertility in @hugh2022human implies that correlations between education and RLRS should be more negative for lower-income/education people, single parents and people who have children earlier.[^2] This in turn implies that correlations between PGS coefficients on education and on RLRS should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
 
 [^2]: See @hugh2022human equation (6) and following.
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS effects on RLRS also appear larger for low-income groups and unmarried respondents. However, there is little evidence for larger effects among people with lower education or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education.
+The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education.
 
 # Appendix
 
@@ -848,10 +848,9 @@ rand$variables |>
 ```{r}
 #| label: fig-rlrs
 #| fig-cap: |
-#|  Effects of PGS on RLRS among white respondents. 
-#|  Values are partial correlations of a one standard deviation 
-#|  (within ethnicity) change of the PGS with RLRS, controlling 
-#|  for 10 principal components of genomic array data. 
+#|  Coefficients of PGS on RLRS among white respondents, controlling for 10
+#|  principal components of
+#|  genomic array data. Lines are 95% confidence intervals.
 #| fig-height: 6
 
 
@@ -866,7 +865,7 @@ tidy_pgs$white |>
     theme_light() + 
     labs(
       x = "", y = "",
-      title = "Effects of polygenic scores on RLRS"
+      title = "Coefficients of polygenic scores on RLRS"
     ) +
     theme(
       axis.text.y = element_text(size = 7),
@@ -879,7 +878,7 @@ tidy_pgs$white |>
 ```{r}
 #| label: fig-siblings
 #| fig-cap: |
-#|   Scatterplot of PGS effect sizes on number of live siblings and years of
+#|   Scatterplot of PGS coefficients on number of live siblings and years of
 #|   education. Controls include 10 principal components of genetic array
 #|   data. Dashed lines show linear regressions.
 #| fig-subcap:
@@ -905,8 +904,8 @@ for (eth in eths) {
       theme(panel.grid = element_blank()) +
       labs(
           title = eth,
-          x = "Effect on years of education",
-          y = "Effect on number of siblings"
+          x = "Coefficient on years of education",
+          y = "Coefficient on number of siblings"
       )
   print(ggp)
 }
@@ -931,13 +930,10 @@ themes_x <- theme_minimal() +
 ```{r}
 #| label: fig-x-edu
 #| fig-cap: |
-#|   Boxplots of polygenic score effects on RLRS by education
-#|   among white respondents. Effect sizes are
-#|   absolute sizes of effects of a one standard deviation (within-ethnicity) 
-#|   change of the PGS on RLRS, controlling for 10 principal 
+#|   Boxplots of polygenic score coefficients on RLRS 
+#|   among white respondents, controlling for 10 principal 
 #|   components of genetic array data, estimated within the low/high
 #|   education group. Boxes show quartiles. 
-
 
 tidy_pgs_x_ed$white |> 
   mutate(
@@ -947,8 +943,8 @@ tidy_pgs_x_ed$white |>
     geom_x_boxplot + geom_x_point +
     labs(
       x = "Years of education",
-      y = "Absolute effect size",
-      title = paste("PGS effects on RLRS by education", 
+      y = "Absolute coefficient",
+      title = paste("PGS coefficients on RLRS by education", 
                     calc_n(mod_pgs_x_ed))
     ) +
     themes_x
@@ -957,12 +953,10 @@ tidy_pgs_x_ed$white |>
 ```{r}
 #| label: fig-x-inc
 #| fig-cap: |
-#|   Boxplots of polygenic score effects on RLRS by income
-#|   among white respondents. Effect sizes are
-#|   absolute sizes of effects of a one standard deviation (within-ethnicity) 
-#|   change of the PGS on RLRS, controlling for 10 principal 
-#|   components of genetic array data, estimated within the low/high income
-#|   group. Boxes show quartiles.
+#|   Boxplots of polygenic score coefficients on RLRS 
+#|   among white respondents, controlling for 10 principal 
+#|   components of genetic array data, estimated within the below/above
+#|   median income group. Boxes show quartiles.
 
 tidy_pgs_x_inc$white |> 
   mutate(
@@ -972,8 +966,8 @@ tidy_pgs_x_inc$white |>
     geom_x_boxplot + geom_x_point +
     labs(
       x = "Income",
-      y = "Absolute effect size",
-      title = paste("PGS effects on RLRS by income", 
+      y = "Absolute coefficient",
+      title = paste("PGS coefficients on RLRS by income", 
                     calc_n(mod_pgs_x_inc))
     ) +
     themes_x
@@ -982,12 +976,10 @@ tidy_pgs_x_inc$white |>
 ```{r}
 #| label: fig-x-mar
 #| fig-cap: |
-#|   Boxplots of polygenic score effects on RLRS by marital status
-#|   among white respondents. Effect sizes are
-#|   absolute sizes of effects of a one standard deviation (within-ethnicity) 
-#|   change of the PGS on RLRS, controlling for 10 principal 
-#|   components of genetic array data, estimated within the low/high income
-#|   group. Boxes show quartiles.
+#|   Boxplots of polygenic score coefficients on RLRS 
+#|   among white respondents, controlling for 10 principal 
+#|   components of genetic array data, estimated within married 
+#|   and other respondents. Boxes show quartiles.
 
 tidy_pgs_x_mar$white |> 
     mutate(
@@ -997,8 +989,8 @@ tidy_pgs_x_mar$white |>
       geom_x_boxplot + geom_x_point +
       labs(
           x = "Married",
-          y = "Absolute effect size",
-          title = paste("PGS effects on RLRS by marital status", 
+          y = "Absolute coefficient",
+          title = paste("PGS coefficients on RLRS by marital status", 
                         calc_n(mod_pgs_x_mar))
       ) +
       themes_x
@@ -1008,12 +1000,10 @@ tidy_pgs_x_mar$white |>
 ```{r}
 #| label: fig-x-agefb
 #| fig-cap: |
-#|   Boxplots of polygenic score effects on RLRS by age at 
-#|   first birth (median split) among white respondents. Effect sizes are
-#|   absolute sizes of effects of a one standard deviation (within-ethnicity) 
-#|   change of the PGS on RLRS, controlling for 10 principal 
-#|   components of genetic array data, estimated within the low/high income
-#|   group. Boxes show quartiles.
+#|   Boxplots of polygenic score coefficients on RLRS 
+#|   among white respondents, controlling for 10 principal 
+#|   components of genetic array data, estimated within below/above
+#|   median age at first birth respondents. Boxes show quartiles.
 
 tidy_pgs_x_agefb$white |> 
     mutate(
@@ -1023,8 +1013,8 @@ tidy_pgs_x_agefb$white |>
       geom_x_boxplot + geom_x_point +
       labs(
           x = "Age at first birth",
-          y = "Absolute effect size",
-          title = paste("PGS effects on RLRS by age at first birth", 
+          y = "Absolute coefficient",
+          title = paste("PGS coefficients on RLRS by age at first birth", 
                         calc_n(mod_pgs_x_agefb))
       ) +
       themes_x
