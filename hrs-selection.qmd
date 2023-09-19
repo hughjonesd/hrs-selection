@@ -499,6 +499,8 @@ if (n_sig_bonf != 0) stop("More/less than 0 score was Bonferroni significant")
 
 ```{r}
 #| label: stat-bootstrap-eth-cor
+#| cache: true
+#| cache-lazy: false
 
 n_reps_eth_diff <- 99
 rand_boot <- rand |> 
@@ -683,7 +685,7 @@ I can also examine natural selection in the previous generation, by regressing P
 I next test part 2 of the theory more directly by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
 ```{r}
-#| label: stat-x-bootstraps
+#| label: stat-x-bootstrap-cors
 #| cache: true
 #| cache-lazy: false
 #| eval: false
@@ -743,7 +745,74 @@ for (eth in eths) {
 
 ```
 
-Appendix @fig-x-edu shows essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Effect sizes appear larger for unmarried respondents. Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values.
+```{r}
+#| label: stat-x-bootstrap-effect-size
+#| cache: true
+#| cache-lazy: false
+
+n_reps_x <- 99
+
+calc_diff_effect_size <- function (w, data, term) {
+  groups <- switch(term,
+                edu = c("0-12", "13-17"),
+                income_med = c("Low", "High"),
+                married = c("Other", "Married"),
+                agefb = c("Low", "High"))
+  groups <- paste0(":", term, groups) # colon for the cross term
+  low_group <- groups[1]
+  high_group <- groups[2]
+  
+  forms <- paste0(pgs, ":", term) |>
+    map(\(x) reformulate(c(x, term, pcs), response = "raevbrn"))
+  mods <- map(forms, \(x) lm(x, data, weights = w))
+  cfs <- map(mods, coef)
+  cfs_low <- map_dbl(cfs, \(x) x[str_detect(names(x), low_group)])
+  cfs_high <- map_dbl(cfs, \(x) x[str_detect(names(x), high_group)])
+  
+  abs_eff_low <- mean(abs(cfs_low))
+  abs_eff_high <- mean(abs(cfs_high))
+  diff_abs_eff <- abs_eff_low - abs_eff_high
+  c(low = abs_eff_low, high = abs_eff_high, diff = diff_abs_eff)
+}
+
+diff_effect_size <- ci <- est <- tbl <- list()
+
+terms <- c("edu", "income_med", "married", "agefb")
+
+rand_boot <- rand |> 
+  subset(ethnicity == "white") |> 
+  as.svrepdesign(type = "bootstrap", replicates = n_reps_x)
+
+for (term in terms) {
+  diff_effect_size[[term]] <- 
+    withReplicates(rand_boot, theta = calc_diff_effect_size, term = term)  
+  ci[[term]] <- confint_workaround(diff_effect_size[[term]])
+  est[[term]] <- as.numeric(diff_effect_size[[term]])
+  tbl[[term]] <- sprintf("%.3f (%.3f to %.3f)", est[[term]], 
+                         ci[[term]][, 1], ci[[term]][, 2])
+}
+
+```
+
+```{r}
+#| label: stat-post-x-bootstrap
+
+stopifnot(insignificant(ci$edu[3,]))
+stopifnot(significant(ci$income_med[3,]))
+stopifnot(significant(ci$married[3,]))
+stopifnot(insignificant(ci$agefb[3,]))
+```
+
+Appendix @fig-x-edu shows essentially no difference in the distribution of absolute effect sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that absolute effect sizes appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute effect sizes for respondents who were married in 2010 against all other statuses. Effect sizes appear larger for unmarried respondents. Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values. @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute effect sizes in the two groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
+
+|               | Low group             | High group            | Difference            |
+|------------------|------------------|------------------|------------------|
+| Education     | `r tbl$edu[1]`        | `r tbl$edu[2]`        | `r tbl$edu[3]`        |
+| Income        | `r tbl$income_med[1]` | `r tbl$income_med[2]` | `r tbl$income_med[3]` |
+| Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
+| Age 1st birth | `r tbl$agefb[1]`      | `r tbl$agefb[2]`      | `r tbl$agefb[3]`      |
+
+: Bootstrap estimates and 95% confidence intervals for mean absolute effect sizes of PGS on fertility in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
 
 The economic theory of fertility in @hugh2022human implies that correlations between education and fertility should be more negative for lower-income/education people, single parents and people who have children earlier.[^2] This in turn implies that correlations between PGS effects on education and on fertility should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
 
@@ -751,7 +820,7 @@ The economic theory of fertility in @hugh2022human implies that correlations bet
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. However, there is little evidence that PGS effects on fertility are larger, or more correlated with effects on education, among low-education or low-income individuals, unmarried parents, or younger parents. This is partly due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population; I can only say that the data do not reject a negative association between PGS correlations with fertility and on education.
+The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS effects on fertility also appear larger for low-income groups and unmarried respondents. However, there is little evidence for larger effects among people with lower education or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with fertility and on education.
 
 # Appendix
 
