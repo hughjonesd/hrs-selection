@@ -64,12 +64,8 @@ library(purrr)
 library(ggplot2)
 library(tidyr)
 library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
-library(future)
-library(furrr)
  # masks dotchart:
 suppressPackageStartupMessages(library(survey, warn.conflicts = FALSE))
-
-plan(multisession, workers = 6)
 
 nice_names <- c(
   SCZ         = "Schizophrenia",
@@ -185,14 +181,6 @@ significant <- function (x) {
 insignificant <- Negate(significant)
 
 
-# workaround failure in confint.svrepdesign
-confint_workaround <- function (x) {
-  cbind(
-    as.numeric(x) - 1.96 * SE(x), 
-    as.numeric(x) + 1.96 * SE(x))
-}
-
-
 # rand HRS longit data. VERY BIG
 # Done just once:
 # rand_orig <- haven::read_dta("data/randhrs/randhrs1992_2020v1.dta")
@@ -214,8 +202,12 @@ trk_orig <- haven::read_dta("data/trk2020v3/trk2020tr_r.dta")
 trk_weights <- trk_orig |> select(HHID, PN, matches("BIOWGTR"))
 
 # rand family respondents file
-rand_fam <- haven::read_dta(
-  "data/randhrsfam1992_2018v2_STATA/randhrsfamr1992_2018v2.dta")
+# Done just once:
+# rand_fam <- haven::read_dta(
+#   "data/randhrsfam1992_2018v2_STATA/randhrsfamr1992_2018v2.dta")
+# saveRDS(rand_fam, "data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
+rand_fam <- readRDS("data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
+
 # only selected columns to avoid creating suffixes when we join with
 # rand.
 # Age of oldest kid; grandchildren; num siblings who died
@@ -291,7 +283,7 @@ rand <- rand |>
     married = factor(r10mstat == 1, 
                      levels = c(FALSE, TRUE),
                      labels = c("Other", "Married")),
-    r10sibs = r10livsib + r10sbdied + 1, # n. sibs including oneself!
+    r10sibs = r10livsib + 1, # n. sibs including oneself!
     agefb = r10agey_e - h10ageokid,
     agefb = ifelse(agefb < 12, NA_real_, agefb),
     agefb = chop_equally(agefb, 2, labels = c("Low", "High"))
@@ -376,7 +368,7 @@ for (eth in eths) {
   r_parents_eth <- r_parents |> subset(ethnicity == eth)
   
   form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-  mod_pgs[[eth]] <- future_map(form_pgs, 
+  mod_pgs[[eth]] <- map(form_pgs, 
                                \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs[[eth]] <- mod_pgs[[eth]] |> 
@@ -386,7 +378,7 @@ for (eth in eths) {
   
   form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
                                               response = "raedyrs"))
-  mod_pgs_edyrs[[eth]] <- future_map(form_pgs_edyrs, 
+  mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
                                      \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_ed[[eth]] <- mod_pgs_edyrs[[eth]] |>  
@@ -408,7 +400,7 @@ for (eth in eths) {
   
   form_pgs_sibs <- map(pgs, 
                        \(x) reformulate(c(x, pcs), response = "r10sibs"))
-  mod_pgs_sibs[[eth]] <- future_map(form_pgs_sibs,
+  mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
                                     \(x) svyglm_quiet(x, r_parents_eth))
   
   tidy_pgs_sibs[[eth]] <- mod_pgs_sibs[[eth]] |> 
@@ -419,11 +411,22 @@ for (eth in eths) {
   cors_sibs_edu[[eth]] <- cor(tidy_pgs_sibs[[eth]]$estimate, 
                      tidy_pgs_ed[[eth]]$estimate)
   
+  
+  cor_fert_edu_phen[[eth]] <- 
+    svyglm_quiet(rlrs ~ raedyrs, r_eth) |> 
+    coef() |> 
+    pluck("raedyrs")
+}
+
+# we only look at interactions among whites, the rest is pointless
+for (eth in "white") {
+  r_eth <- rand |> subset(ethnicity == eth)
+  
   # the colon interaction estimates the effect separately within each group
   form_pgs_x_ed <- paste0(pgs, ":edu") |>
     map(\(x) reformulate(c(x, "edu", pcs), response = "rlrs"))
   mod_pgs_x_ed[[eth]]  <-
-    future_map(form_pgs_x_ed, 
+    map(form_pgs_x_ed, 
                \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_ed[[eth]] <-
@@ -437,7 +440,7 @@ for (eth in eths) {
   form_pgs_x_inc <- paste0(pgs, ":income_med") |>
     map(\(x) reformulate(c(x, "income_med", pcs), response = "rlrs"))
   mod_pgs_x_inc[[eth]]  <-
-    future_map(form_pgs_x_inc, 
+    map(form_pgs_x_inc, 
                \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_inc[[eth]] <-
@@ -451,7 +454,7 @@ for (eth in eths) {
   form_pgs_x_mar <- paste0(pgs, ":married") |>
     map(\(x) reformulate(c(x, "married", pcs), response = "rlrs"))
   mod_pgs_x_mar[[eth]]  <-
-    future_map(form_pgs_x_mar, 
+    map(form_pgs_x_mar, 
                \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_mar[[eth]] <-
@@ -467,7 +470,7 @@ for (eth in eths) {
   form_pgs_x_agefb <- paste0(pgs, ":agefb") |>
     map(\(x) reformulate(c(x, "agefb", pcs), response = "rlrs"))
   mod_pgs_x_agefb[[eth]]  <-
-    future_map(form_pgs_x_agefb, 
+    map(form_pgs_x_agefb, 
                \(x) svyglm_quiet(x, r_eth))
   
   tidy_pgs_x_agefb[[eth]] <-
@@ -478,16 +481,9 @@ for (eth in eths) {
     mutate(
       agefb = str_remove(term, ".*:agefb")
     ) 
-  
-  cor_fert_edu_phen[[eth]] <- 
-    svyglm_quiet(rlrs ~ raedyrs, r_eth) |> 
-    coef() |> 
-    pluck("raedyrs")
 }
 
-
-tidy_pgs_eth <- bind_rows(tidy_pgs,  .id = "ethnicity")
-
+tidy_pgs_eth <- list_rbind(tidy_pgs)
 n_tests <- nrow(tidy_pgs_eth)
 n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 
@@ -519,12 +515,13 @@ calc_eth_cor <- function (weights, data) {
                     subset = ethnicity == "black")) |> 
         map2_dbl(pgs, \(x, y) coef(x)[[y]])
   
-  cor(coef_pgs_black, coef_pgs_white)
+  c(cor = cor(coef_pgs_black, coef_pgs_white))
 }
+
 
 cor_eths <- cor(tidy_pgs$white$estimate, tidy_pgs$black$estimate)
 cor_eths_boot <- withReplicates(rand_boot, theta = calc_eth_cor)
-ci_eths <- confint_workaround(cor_eths_boot)[1,]
+ci_eths <- confint(cor_eths_boot)[1,]
 ```
 
 I estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
@@ -535,11 +532,14 @@ I estimated coefficients of PGS on RLRS among black and white respondents separa
 #| label: stat-bootstraps
 #| cache: true
 #| cache-lazy: false
+#| cache-comments: false
 
-# use this rather than future_map, to avoid setup costs.
-# Not sure it actually does anything :-)
-options(survey.multicore = TRUE) 
 
+# Not sure this actually does anything :-)
+old_opts <- options(survey.multicore = TRUE) 
+
+# The large n_reps is to get an accurate upper tail on the black sample, 
+# since it is close to 0:
 n_reps <- 599
 
 calc_cors_edu <- function (weights, data, var) {
@@ -554,8 +554,8 @@ calc_cors_edu <- function (weights, data, var) {
         map_dbl(\(x) coef(x)[[2]])
   
   c(
-    cor(coef_pgs_edu, coef_pgs_fert),
-    coef(lm(coef_pgs_fert ~ coef_pgs_edu))["coef_pgs_edu"]
+    cor = cor(coef_pgs_edu, coef_pgs_fert),
+    coef = coef(lm(coef_pgs_fert ~ coef_pgs_edu))["coef_pgs_edu"]
   )
 }
   
@@ -575,7 +575,7 @@ for (eth in eths) {
     withReplicates(r_parents_boot, theta = calc_cors_edu, var = "r10sibs")
 }
 
-
+options(old_opts)
 ```
 
 ```{r}
@@ -607,7 +607,7 @@ calc_eth_diff <- function (weights, data) {
   # as the correct sign. Negative if b was "bigger"  than w.
   diff_coefs <- (coef_pgs_white - coef_pgs_black)*sign(coef_pgs_white)
   names(diff_coefs) <- pgs
-  mean(diff_coefs)
+  c(diff = mean(diff_coefs))
 }
 
 diff_eths <- withReplicates(rand_boot, theta = calc_eth_diff)
@@ -618,16 +618,16 @@ diff_eths <- withReplicates(rand_boot, theta = calc_eth_diff)
 
 # separate so we don't interfere with the bootstrap cache
 
-ci_boot_fert <- map(cors_fert_edu, \(x) confint_workaround(x)[1,])
-ci_boot_sibs <- map(cors_sibs_edu, \(x) confint_workaround(x)[1,])
+ci_boot_fert <- map(cors_fert_edu, \(x) confint(x)[1,])
+ci_boot_sibs <- map(cors_sibs_edu, \(x) confint(x)[1,])
 
-ci_boot_fert_lm <- map(cors_fert_edu, \(x) confint_workaround(x)[2,])
-ci_boot_sibs_lm <- map(cors_sibs_edu, \(x) confint_workaround(x)[2,])
+ci_boot_fert_lm <- map(cors_fert_edu, \(x) confint(x)[2,])
+ci_boot_sibs_lm <- map(cors_sibs_edu, \(x) confint(x)[2,])
 
-stopifnot(significant(ci_boot_fert$white))
-stopifnot(insignificant(ci_boot_fert$black))
-stopifnot(insignificant(ci_boot_sibs$white))
-stopifnot(insignificant(ci_boot_sibs$black))
+if (insignificant(ci_boot_fert$white)) warning("ci_boot_fert$white insignificant")
+if (! insignificant(ci_boot_fert$black)) warning("ci_boot_fert$black significant")
+if (significant(ci_boot_sibs$white)) warning("ci_boot_sibs$white significant")
+if (significant(ci_boot_sibs$black)) warning("ci_boot_sibs$black significant")
 ```
 
 @fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Bootstraps are used so as to make inferences from the sample of respondents (the different PGS are not a "sample" of anything).
@@ -684,7 +684,9 @@ cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
 if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of siblings (including dead siblings) in 2010. I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficents on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, although note that standard errors are large (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`).
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, although note that standard errors are large (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`).
+
+
 
 I next test part 2 of the theory more directly by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
@@ -693,6 +695,8 @@ I next test part 2 of the theory more directly by interacting PGS with measures 
 #| cache: true
 #| cache-lazy: false
 #| eval: false
+
+old_opts <- options(survey.multicore = TRUE) 
 
 # all confindence intervals were too wide to be informative
 n_reps_x <- 99
@@ -738,14 +742,13 @@ for (eth in eths) {
   for (term in terms) {
     diff_cor_ed[[eth]][[term]] <- 
       withReplicates(rand_boot, theta = calc_diff_cor_ed, term = term)  
-    ci[[eth]][[term]] <- confint_workaround(diff_cor_ed[[eth]][[term]])
+    ci[[eth]][[term]] <- confint(diff_cor_ed[[eth]][[term]])
     est[[eth]][[term]] <- as.numeric(diff_cor_ed[[eth]][[term]])
   }
 }
 
+options(old_opts)
 
-# TODO: does splitting by education to 12 and education 13-16 mechanically
-#   cause a lower correlation with edyrs in the 13-16 group?
 
 ```
 
@@ -753,8 +756,11 @@ for (eth in eths) {
 #| label: stat-x-bootstrap-effect-size
 #| cache: true
 #| cache-lazy: false
+#| cache-comments: false
 
-n_reps_x <- 99
+old_opts <- options(survey.multicore = TRUE) 
+
+n_reps_x_es <- 99
 
 calc_diff_effect_size <- function (w, data, term) {
   groups <- switch(term,
@@ -779,22 +785,58 @@ calc_diff_effect_size <- function (w, data, term) {
   c(low = abs_eff_low, high = abs_eff_high, diff = diff_abs_eff)
 }
 
+
 diff_effect_size <- ci <- est <- tbl <- list()
 
 terms <- c("edu", "income_med", "married", "agefb")
 
 rand_boot <- rand |> 
   subset(ethnicity == "white") |> 
-  as.svrepdesign(type = "bootstrap", replicates = n_reps_x)
+  as.svrepdesign(type = "bootstrap", replicates = n_reps_x_es)
 
 for (term in terms) {
   diff_effect_size[[term]] <- 
     withReplicates(rand_boot, theta = calc_diff_effect_size, term = term)  
-  ci[[term]] <- confint_workaround(diff_effect_size[[term]])
+  ci[[term]] <- confint(diff_effect_size[[term]])
   est[[term]] <- as.numeric(diff_effect_size[[term]])
   tbl[[term]] <- sprintf("%.3f (%.3f to %.3f)", est[[term]], 
                          ci[[term]][, 1], ci[[term]][, 2])
 }
+
+options(old_opts)
+
+```
+
+```{r}
+#| label: stat-agefb-bootstrap
+
+n_reps_agefb <- 9
+calc_cor_agefb <- function (w, data) {
+  forms <- pgs |> map(\(x) reformulate(c(x, pcs), response = "raevbrn"))
+  mods_low <- map(forms, \(x) lm(x, data, subset = agefb == "Low",
+                                 weights = w))
+  mods_high <- map(forms, \(x) lm(x, data, subset = agefb == "High",
+                                  weights = w))
+  coefs_low <- map2_dbl(mods_low, pgs, \(x, y) coef(x)[[y]])
+  coefs_high <- map2_dbl(mods_high, pgs, \(x, y) coef(x)[[y]])
+  
+  c(
+    cor = cor(coefs_low, coefs_high), 
+    discordant = sum(sign(coefs_low) != sign(coefs_high)) # discordant pairs
+  )
+}
+
+rand_boot <- rand |> 
+  subset(ethnicity == "white") |> 
+  as.svrepdesign(type = "bootstrap", replicates = n_reps_agefb)
+
+cor_agefb <- withReplicates(rand_boot, theta = calc_cor_agefb)
+
+stopifnot(insignificant(confint(cor_agefb)[1,]))
+ci_discordant <- confint(cor_agefb)[2,]
+# significantly different from 1/2?
+stopifnot(ci_discordant[1] <= length(pgs)/2 && 
+            ci_discordant[2] >= length(pgs)/2)
 
 ```
 
@@ -805,9 +847,19 @@ stopifnot(insignificant(ci$edu[3,]))
 stopifnot(significant(ci$income_med[3,]))
 stopifnot(significant(ci$married[3,]))
 stopifnot(insignificant(ci$agefb[3,]))
+
+tidy_agefb_wide <- tidy_pgs_x_agefb$white |> 
+  pivot_wider(id_cols = pgs, names_from = agefb, values_from = estimate)
+
+cor_agefb <- cor(tidy_agefb_wide$Low, tidy_agefb_wide$High)
+n_discordant <- sum(sign(tidy_agefb_wide$Low) != sign(tidy_agefb_wide$High))
 ```
 
-Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents. Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between early and late parents. Note that the N is lower here due to missing values. @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in the two groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
+Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents. 
+
+Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Note that the N is lower here due to missing values. 
+
+@tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in each pair of groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
 
 |               | Low group             | High group            | Difference            |
 |------------------|------------------|------------------|------------------|
@@ -816,7 +868,7 @@ Appendix @fig-x-edu shows essentially no difference in the distribution of absol
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
 | Age 1st birth | `r tbl$agefb[1]`      | `r tbl$agefb[2]`      | `r tbl$agefb[3]`      |
 
-: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
+: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
 
 The economic theory of fertility in @hugh2022human implies that correlations between education and RLRS should be more negative for lower-income/education people, single parents and people who have children earlier.[^2] This in turn implies that correlations between PGS coefficients on education and on RLRS should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
 
