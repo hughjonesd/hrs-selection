@@ -284,9 +284,11 @@ rand <- rand |>
                      levels = c(FALSE, TRUE),
                      labels = c("Other", "Married")),
     r10sibs = r10livsib + 1, # n. sibs including oneself!
-    agefb = r10agey_e - h10ageokid,
-    agefb = ifelse(agefb < 12, NA_real_, agefb),
-    agefb = chop_equally(agefb, 2, labels = c("Low", "High"))
+    agefbn = r10agey_e - h10ageokid,
+    agefbn = ifelse(agefbn < 12, NA_real_, agefbn),
+  ) |> 
+  mutate(.by = c(ethnicity, ragender),
+    agefb = chop_equally(agefbn, 2, labels = c("Low", "High"))
   )
 
 # two of four Alzheimer's variants with awkward names:
@@ -296,8 +298,8 @@ names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 
 rand <- rand |> 
   select(ethnicity, all_of(pgs), all_of(pcs), weight, raevbrn, rlrs,
-         raedyrs, r10sibs, edu, income_med, married, agefb, rabyear,
-         raehsamp, raestrat, parent_weight)
+         raedyrs, r10sibs, edu, income_med, married, agefb, agefbn,
+         rabyear, raehsamp, raestrat, parent_weight, ragender)
 
 r_parents <- svydesign(
     id = ~ raehsamp,
@@ -324,12 +326,11 @@ rm(rand_orig, trk_orig, rands, rand_fam)
 
 @hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components.
 
-1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children.
-2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups.
+1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
+2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
 
-The evidence for point 1 is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against. And vice versa, scores which correlate positively with human capital are being selected for. The evidence for point 2 is that correlations with number of children are larger and more significant among people with lower income, less education and single parents.
 
-Here, I make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The HRS also provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so I can check whether the human capital theory predicts patterns of natural selection in both these ethnicities.
+Here, I make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The HRS also provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so I can check whether the theory predicts patterns of natural selection in both these ethnicities.
 
 
 # Data
@@ -361,7 +362,7 @@ tidy_pgs_x_agefb <- mod_pgs_x_agefb <- list()
 
 coefs_fert_edu <- cors_fert_edu <- tidy_pgs_joined <- list()
 cors_sibs_edu <- list()
-cor_fert_edu_phen <- list()
+tidy_fert_edu_phen <- list()
 
 for (eth in eths) {
   r_eth <- rand |> subset(ethnicity == eth)
@@ -411,11 +412,11 @@ for (eth in eths) {
   cors_sibs_edu[[eth]] <- cor(tidy_pgs_sibs[[eth]]$estimate, 
                      tidy_pgs_ed[[eth]]$estimate)
   
-  
-  cor_fert_edu_phen[[eth]] <- 
+
+  tidy_fert_edu_phen[[eth]] <- 
     svyglm_quiet(rlrs ~ raedyrs, r_eth) |> 
-    coef() |> 
-    pluck("raedyrs")
+    broom::tidy(conf.int = TRUE) |> 
+    filter(term == "raedyrs")
 }
 
 # we only look at interactions among whites, the rest is pointless
@@ -857,7 +858,26 @@ n_discordant <- sum(sign(tidy_agefb_wide$Low) != sign(tidy_agefb_wide$High))
 
 Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents. 
 
-Appendix @fig-x-agefb splits respondents by age at first birth (median within each ethnicity). There are no large differences between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Note that the N is lower here due to missing values. 
+Appendix @fig-x-agefb splits respondents by age at first birth (median within each gender). Note that the N is lower here due to missing values. There are no large differences between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Also, in the UK Biobank sample, PGS coefficients on fertility controlling for age at first birth were negatively correlated with uncontrolled coefficient; here, that isn't true, with coefficients remaining positively correlated.
+
+```{r}
+#| label: stat-control-agefb
+#| eval: false
+
+# cselection effects ontrolling for age at first birth
+# 
+form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn", pcs), 
+                                                    response = "rlrs"))
+mod_pgs_control_agefb <- map(form_pgs_control_agefb,
+                             \(x) svyglm_quiet(x, rand, subset = 
+                                                 ethnicity == "white"))
+tidy_pgs_control_agefb <- map(mod_pgs_control_agefb, broom::tidy) |> 
+                          list_rbind() |> 
+                          filter(term %in% pgs)
+
+cor(tidy_pgs$white$estimate, tidy_pgs_control_agefb$estimate)
+
+```
 
 @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in each pair of groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
 
@@ -877,6 +897,8 @@ The economic theory of fertility in @hugh2022human implies that correlations bet
 # Discussion
 
 The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education.
+
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on fertility is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and by their different predictive power, so this hypothesis can only be speculative.
 
 # Appendix
 
@@ -1068,7 +1090,7 @@ tidy_pgs_x_agefb$white |>
       agefb = fct_relevel(agefb, "Low", "High")
     ) |> 
     ggplot(aes(agefb, abs(estimate), color = agefb)) +
-      geom_x_boxplot + geom_x_point +
+      geom_x_boxplot + geom_x_point + 
       labs(
           x = "Age at first birth",
           y = "Absolute coefficient",
