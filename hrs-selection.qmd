@@ -381,6 +381,7 @@ for (eth in eths) {
                                               response = "raedyrs"))
   mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
                                      \(x) svyglm_quiet(x, r_eth))
+  names(mod_pgs_edyrs[[eth]]) <- pgs
   
   tidy_pgs_ed[[eth]] <- mod_pgs_edyrs[[eth]] |>  
     map(broom::tidy) |>
@@ -631,7 +632,7 @@ if (significant(ci_boot_sibs$white)) warning("ci_boot_sibs$white significant")
 if (significant(ci_boot_sibs$black)) warning("ci_boot_sibs$black significant")
 ```
 
-@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Bootstraps are used so as to make inferences from the sample of respondents (the different PGS are not a "sample" of anything).
+@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [@canty1999resampling] are used so as to make inferences from the sample of respondents (the different PGS are not a "sample" of anything).
 
 ```{r}
 #| label: fig-rlrs-edu
@@ -687,9 +688,7 @@ if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 
 I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, although note that standard errors are large (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`).
 
-
-
-I next test part 2 of the theory more directly by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
+I next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
 ```{r}
 #| label: stat-x-bootstrap-cors
@@ -894,11 +893,33 @@ The economic theory of fertility in @hugh2022human implies that correlations bet
 
 [^2]: See @hugh2022human equation (6) and following.
 
+```{r}
+#| label: stat-pgs-over-time
+#| eval: false
+
+# Plot changes in a couple of variables by decade
+# Below: "Changes in PGS over time are small for both groups..."
+ 
+rand$variables$birth_decade <- chop_width(rand$variables$rabyear, 10, 1920)
+decades_adhd <- svyby(~ADHD_PGC17, ~ birth_decade + ethnicity, rand, 
+                      FUN = svymean) 
+decades_ea3 <- svyby(~EA3, ~ birth_decade + ethnicity, rand, 
+                     FUN = svymean) 
+
+# example plot
+ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity, 
+                        group = ethnicity)) + 
+  geom_line() +
+  geom_pointrange(aes(ymax = EA3 + 1.96 * se, ymin = EA3 - 1.96 * se))
+
+```
+
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on fertility is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Looking within the sample, changes in PGS by birth year are small for both groups, and are probably mostly driven by selective mortality.
+
 # Discussion
 
 The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education.
 
-Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on fertility is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and by their different predictive power, so this hypothesis can only be speculative.
 
 # Appendix
 
@@ -941,7 +962,8 @@ tidy_pgs$white |>
   ) |>
   ggplot(aes(estimate, term)) +
     geom_vline(xintercept = 0) +
-    geom_pointrange(aes(xmin = conf.low, xmax = conf.high), size = 0.3) +
+    geom_pointrange(aes(xmin = conf.low, xmax = conf.high), size = 0.3,
+                    color = "steelblue3") +
     theme_light() + 
     labs(
       x = "", y = "",
