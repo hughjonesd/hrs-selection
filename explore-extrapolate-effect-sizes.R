@@ -70,7 +70,8 @@ all_pgs <- pgen4e |>
 # CPD, CPD_GSCAN19, available for now and also (some years) "when you were
 # smoking the most". But only in original file, not in RAND.
 # See question concordance. -- cigarettes per day (average or max)
-# ADHD_PGC10, ADHD_PGC17, ADHD
+# ADHD_PGC10, ADHD_PGC17: PV001 to PV016 in 2016 core was a module on "difficult
+#   to sustain attention"! Not in tracker ADHD
 # MDD_PGC13, MDD2, r*cesd -- major depressive disorder
 pgs_list <- list(
   # target phenotype = list of successive pgs names
@@ -128,56 +129,6 @@ randsv <- svydesign(
 		data = rand |> drop_na(weight)
 		)
 randsv <- randsv |> subset(ethnicity == "white")
-
-
-# == regressions ====
-
-
-# from the man himself
-# https://stackoverflow.com/a/73956738/10522567
-rsquared <- function (dep_var, design, mod) {
-  dep_var <- reformulate(dep_var)
-  total_var <-svyvar(dep_var, design, na.rm = TRUE)
-  resids <-
-  resid_var <- summary(mod)$dispersion
-  1 - resid_var/total_var
-}
-
-
-phenotypes <- intersect(names(pgs_list), names(randsv$variables))
-rsquares_phen <- list()
-rsquares_fert <- list()
-for (phenotype in phenotypes) {
-  pgs <- pgs_list[[phenotype]]
-
-  fmls <- map(pgs, \(x) reformulate(c(x, pcs), response = phenotype))
-  mods <- map(fmls, \(x) svyglm(x, design = randsv))
-  rsqs <- map_dbl(mods, \(m) rsquared(phenotype, design = randsv, mod = m))
-
-  fmls_fert <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
-  mods_fert <- map(fmls_fert, \(x) svyglm(x, design = randsv))
-  rsqs_fert <- map_dbl(mods_fert, \(m) rsquared("raevbrn", design = randsv, mod = m))
-
-  names(rsqs) <- names(rsqs_fert) <- pgs
-  rsquares_phen[[phenotype]] <- rsqs
-  rsquares_fert[[phenotype]] <- rsqs_fert
-}
-
-for (phenotype in phenotypes) {
-  dfr <- data.frame(fert = rsquares_fert[[phenotype]], phen = rsquares_phen[[phenotype]])
-  m1 <- lm(fert ~ phen, dfr)
-  m2 <- lm(fert ~ 0 + phen, dfr)
-  p1 <- predict(m1, newdata = data.frame(phen = 0.4))
-  p2 <- predict(m2, newdata = data.frame(phen = 0.4))
-  plot(rsquares_phen[[phenotype]], rsquares_fert[[phenotype]],
-       main = phenotype,
-       sub = paste(round(p1, 3), "/", round(p2, 3)),
-       xlim = c(0, 0.5), ylim = c(0, 0.5),
-       xlab = "R2 on phenotype", ylab = "R2 on fertility")
-  points(c(0.4, 0.4), c(p1, p2), pch = 3)
-  abline(m1, col = "red")
-  abline(m2, col = "blue")
-}
 
 # == bootstraps on edu pgs ====
 
@@ -254,6 +205,7 @@ results_df |>
     Source = ifelse(source.pgs == target.pgs, "True", source.pgs)
   ) |>
   ggplot(aes(y = Target, color = Source)) +
+    geom_vline(xintercept = 0, color = "grey60") +
     geom_pointrange(aes(x = mean, xmin = conf.low, xmax = conf.high,
                         linetype = Target == "Twin"),
                     position = position_dodge(.4)) +
@@ -262,7 +214,7 @@ results_df |>
                                   EDU3_SSGAC18 = "green4",
                                   EA3_W23_SSGAC18 = "darkblue")) +
     scale_linetype(guide = "none") +
-    labs(x = "Corrected effect") +
+    labs(x = "Corrected effect on fertility", y = "") +
     theme_minimal()
 
 
@@ -272,6 +224,57 @@ results_df |>
 
 # See this useful stackoverflow question and answer:
 # https://stackoverflow.com/questions/75028201/how-does-the-r-survey-package-compute-bootstrap-confidence-intervals
+
+# == old stuff: regressions on many PGS series ====
+
+
+# from the man himself
+# https://stackoverflow.com/a/73956738/10522567
+rsquared <- function (dep_var, design, mod) {
+  dep_var <- reformulate(dep_var)
+  total_var <-svyvar(dep_var, design, na.rm = TRUE)
+  resids <-
+  resid_var <- summary(mod)$dispersion
+  1 - resid_var/total_var
+}
+
+
+phenotypes <- intersect(names(pgs_list), names(randsv$variables))
+rsquares_phen <- list()
+rsquares_fert <- list()
+for (phenotype in phenotypes) {
+  pgs <- pgs_list[[phenotype]]
+
+  fmls <- map(pgs, \(x) reformulate(c(x, pcs), response = phenotype))
+  mods <- map(fmls, \(x) svyglm(x, design = randsv))
+  rsqs <- map_dbl(mods, \(m) rsquared(phenotype, design = randsv, mod = m))
+
+  fmls_fert <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
+  mods_fert <- map(fmls_fert, \(x) svyglm(x, design = randsv))
+  rsqs_fert <- map_dbl(mods_fert, \(m) rsquared("raevbrn", design = randsv, mod = m))
+
+  names(rsqs) <- names(rsqs_fert) <- pgs
+  rsquares_phen[[phenotype]] <- rsqs
+  rsquares_fert[[phenotype]] <- rsqs_fert
+}
+
+for (phenotype in phenotypes) {
+  dfr <- data.frame(fert = rsquares_fert[[phenotype]], phen = rsquares_phen[[phenotype]])
+  m1 <- lm(fert ~ phen, dfr)
+  m2 <- lm(fert ~ 0 + phen, dfr)
+  p1 <- predict(m1, newdata = data.frame(phen = 0.4))
+  p2 <- predict(m2, newdata = data.frame(phen = 0.4))
+  plot(rsquares_phen[[phenotype]], rsquares_fert[[phenotype]],
+       main = phenotype,
+       sub = paste(round(p1, 3), "/", round(p2, 3)),
+       xlim = c(0, 0.5), ylim = c(0, 0.5),
+       xlab = "R2 on phenotype", ylab = "R2 on fertility")
+  points(c(0.4, 0.4), c(p1, p2), pch = 3)
+  abline(m1, col = "red")
+  abline(m2, col = "blue")
+}
+
+
 # == old stuff ====
 
 edu_pgs <- c("EDU2", "EDU3", "EA3")

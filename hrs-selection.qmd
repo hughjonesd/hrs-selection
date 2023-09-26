@@ -46,6 +46,21 @@ bibliography: bibliography-hrs.bib
 
 options(digits = 3)
 set.seed(271075)
+
+library(tibble)
+library(haven)
+library(forcats)
+library(dplyr, warn.conflicts = FALSE)
+library(stringr)
+library(purrr)
+library(carData)
+library(car, warn.conflicts = FALSE) # masks some
+library(ggplot2)
+library(tidyr)
+library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
+ # masks dotchart:
+suppressPackageStartupMessages(library(survey, warn.conflicts = FALSE))
+
 knitr::knit_hooks$set("inline", 
   \(x) {
     if (! is.na(x <- suppressWarnings(as.numeric(x)))) {
@@ -54,18 +69,6 @@ knitr::knit_hooks$set("inline",
     x
   }
 )
-
-
-library(haven)
-library(forcats)
-library(dplyr, warn.conflicts = FALSE)
-library(stringr)
-library(purrr)
-library(ggplot2)
-library(tidyr)
-library(santoku, warn.conflicts = FALSE) # masks tidyr::chop
- # masks dotchart:
-suppressPackageStartupMessages(library(survey, warn.conflicts = FALSE))
 
 nice_names <- c(
   SCZ         = "Schizophrenia",
@@ -97,8 +100,8 @@ nice_names <- c(
   HDL         = "HDL cholesterol",
   LDL         = "LDL cholesterol",
   TC          = "Total cholesterol",
-  ANXFS       = "Anxiety CC", 
-  ANXCC       = "Anxiety factor",
+  ANXFS       = "Anxiety factor", 
+  ANXCC       = "Anxiety case-control",
   BUN         = "Blood urea nitro.",
   BUNTE       = "Blood urea nitro. TE",
   CKD         = "Kidney disease",
@@ -141,6 +144,7 @@ shorten <- function (x) {
   duplicates <- names(duplicates)[duplicates > 1]
   x_short[x_short %in% duplicates] <- x[x_short %in% duplicates]
 
+  x_short <- str_replace(x_short, "^01", "ALZ_01") # two alzheimer's variants
   x_short
 }
 
@@ -207,11 +211,50 @@ trk_weights <- trk_orig |> select(HHID, PN, matches("BIOWGTR"))
 #   "data/randhrsfam1992_2018v2_STATA/randhrsfamr1992_2018v2.dta")
 # saveRDS(rand_fam, "data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
 rand_fam <- readRDS("data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
-
 # only selected columns to avoid creating suffixes when we join with
 # rand.
 # Age of oldest kid; grandchildren; num siblings who died
 rand_fam <- rand_fam |> select(hhid, pn, h10ageokid, h10gkid, r10sbdied)
+
+
+# 2010 (and others) record "age started smoking"
+# rand_2010 <- haven::read_dta("data/hd10f6a_STATA/hd10f6a.dta")
+# saveRDS(rand_2010, "data/hd10f6a_STATA/rand_2010.rds")
+rand_2010 <- readRDS("data/hd10f6a_STATA/rand_2010.rds")
+rand_2010 <- rand_2010 |> 
+  select(hhid, pn, mc120, matches("mlb041")) |> 
+  mutate(
+    age_smoked = ifelse(mc120 %in% c(95, 98, 99), NA_real_, mc120)
+  )
+rand_2010$anxiety <- rand_2010 |> 
+  select(matches("mlb041")) |> 
+  rowMeans(na.rm = TRUE)
+rand_2010$anx_na <- rand_2010 |> 
+  select(matches("mlb041")) |> 
+  is.na() |> 
+  rowSums()
+# matches the documentation at 
+# https://hrs.isr.umich.edu/sites/default/files/biblio/HRS2006LBQscale.pdf :
+rand_2010$anxiety[rand_2010$anx_na > 2] <- NA_real_
+
+# 2016 survey had a module with 18 questions diagnosing adult ADHD
+# rand_2016 <- haven::read_dta("data/h16f2c_STATA/h16f2c.dta")
+# saveRDS(rand_2016, "data/h16f2c_STATA/rand_2016.rds")
+rand_2016 <- readRDS("data/h16f2c_STATA/rand_2016.rds")
+rand_2016 <- rand_2016 |> 
+  select(hhid, pn, pv001:pv018) |> 
+  mutate(
+    across(matches("pv\\d\\d\\d"), \(x) ifelse(x %in% 8:9, NA, x)),
+    across(matches("pv\\d\\d\\d"), \(x) x == 1) # 1 is "yes', 5 is "no"
+  )
+rand_2016$adhd_score <- rand_2016 |> 
+  select(pv001:pv018) |> 
+  rowSums(na.rm = TRUE)
+rand_2016$adhd_nas <- rand_2016 |> 
+  select(pv001:pv018) |> 
+  is.na() |> 
+  rowSums(na.rm = TRUE)
+rand_2016$adhd_score <- rand_2016$adhd_score/(18 - rand_2016$adhd_nas)
 
 pgens <- list(white = pgen4e, black = pgen4a)
 
@@ -230,6 +273,9 @@ for (eth in eths) {
 
 rand <- list_rbind(rands, names_to = "ethnicity")
 
+old_pgs <- c("EDU2", "EDU3", "HEIGHT", "BMI",
+           "AD", "AD2", "GENCOG", "EVRSMK", "LONG", "CPD_TAG10",
+           "ADHD_PGC10", "MDD")
 pgs <- pgen4e |>
     rename_with(shorten) |> 
     # weird that I have to operate on whole df to use select semantics
@@ -237,18 +283,10 @@ pgs <- pgen4e |>
            -matches("^PC\\d"),
            -matches("^NEB"), # number ever born
            # outdated, or EDU3 without 23andMe:
-           -EDU2, -EDU3, -HEIGHT, -BMI,
-           -AD, -AD2, -GENCOG, -EVRSMK, -LONG, -CPD_TAG10,
-           -ADHD_PGC10, -MDD
+           -any_of(old_pgs)
            ) |>
     names()
 
-
-
-rand <- rand |> left_join(rand_fam, 
-                          by = join_by(hhid, pn),
-                          unmatched = "drop",
-                          relationship = "one-to-one")
 
 # weighting
 rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
@@ -257,6 +295,21 @@ rand$weight <- ifelse(is.na(rand$MBIOWGTR), rand$NBIOWGTR, rand$MBIOWGTR)
 # we use living sibs rather than including dead sibs too here. I think that's
 # the correct approach:
 rand$parent_weight <- rand$weight / (rand$r10livsib + 1)
+
+rand <- rand |> left_join(rand_fam, 
+                          by = join_by(hhid, pn),
+                          unmatched = "drop",
+                          relationship = "one-to-one")
+
+rand <- rand |> left_join(rand_2016, 
+                          by = join_by(hhid, pn),
+                          unmatched = "drop",
+                          relationship = "one-to-one")
+
+rand <- rand |> left_join(rand_2010, 
+                          by = join_by(hhid, pn),
+                          unmatched = "drop",
+                          relationship = "one-to-one")
 
 rand <- rand |>
   mutate(.by = rabyear, # calculate this pooling ethnicity
@@ -269,6 +322,8 @@ rand <- rand |>
     income_med = chop_equally(income_resid, 2, labels = c("Low", "High")),
     # as.numeric avoids haven.labelled issues:
     raedyrs = as.numeric(raedyrs),
+    r10hearte = as.numeric(r10hearte),
+    r10diabe = as.numeric(r10diabe),
     edu = chop(as.numeric(raedyrs), 13, lbl_discrete(symbol = "-")),
     # wave 10 is 2010
     # table(rands$white$r10mstat)
@@ -291,15 +346,22 @@ rand <- rand |>
     agefb = chop_equally(agefbn, 2, labels = c("Low", "High"))
   )
 
+rand$neurot <- rand |> 
+  select(matches("r\\d+lbneur")) |> 
+  rowMeans(na.rm = TRUE)
+
 # two of four Alzheimer's variants with awkward names:
 pgs <- str_replace(pgs, "^01", "ALZ_01")
 names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 
 
 rand <- rand |> 
-  select(ethnicity, all_of(pgs), all_of(pcs), weight, raevbrn, rlrs,
+  select(ethnicity, all_of(pgs), all_of(old_pgs), 
+         all_of(pcs), weight, raevbrn, rlrs,
          raedyrs, r10sibs, edu, income_med, married, agefb, agefbn,
-         rabyear, raehsamp, raestrat, parent_weight, ragender)
+         rabyear, raehsamp, raestrat, parent_weight, ragender,
+         adhd_score, neurot, r10diabe, r10hearte, r10cesd, age_smoked,
+         anxiety, r10cogtot)
 
 r_parents <- svydesign(
     id = ~ raehsamp,
@@ -321,7 +383,7 @@ n_white <- nrow(rand |> subset(ethnicity == "white"))
 n_black <- nrow(rand |> subset(ethnicity == "black"))
 
 # clean up cache so it doesn't get too big
-rm(rand_orig, trk_orig, rands, rand_fam)
+rm(rand_orig, trk_orig, rands, rand_fam, rand_2010, rand_2016)
 ```
 
 @hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components.
@@ -329,9 +391,7 @@ rm(rand_orig, trk_orig, rands, rand_fam)
 1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
 2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
 
-
 Here, I make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The HRS also provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so I can check whether the theory predicts patterns of natural selection in both these ethnicities.
-
 
 # Data
 
@@ -528,8 +588,6 @@ ci_eths <- confint(cor_eths_boot)[1,]
 
 I estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes, and only `r n_sig_bonf` score is significant at Bonferroni-corrected p \< 0.05/`r n_tests`. But I am most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
-
-
 ```{r}
 #| label: stat-bootstraps
 #| cache: true
@@ -632,7 +690,7 @@ if (significant(ci_boot_sibs$white)) warning("ci_boot_sibs$white significant")
 if (significant(ci_boot_sibs$black)) warning("ci_boot_sibs$black significant")
 ```
 
-@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [@canty1999resampling] are used so as to make inferences from the sample of respondents (the different PGS are not a "sample" of anything).
+@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [@canty1999resampling] are used so as to make inferences from the sample of respondents.
 
 ```{r}
 #| label: fig-rlrs-edu
@@ -855,7 +913,7 @@ cor_agefb <- cor(tidy_agefb_wide$Low, tidy_agefb_wide$High)
 n_discordant <- sum(sign(tidy_agefb_wide$Low) != sign(tidy_agefb_wide$High))
 ```
 
-Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents. 
+Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents.
 
 Appendix @fig-x-agefb splits respondents by age at first birth (median within each gender). Note that the N is lower here due to missing values. There are no large differences between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Also, in the UK Biobank sample, PGS coefficients on fertility controlling for age at first birth were negatively correlated with uncontrolled coefficient; here, that isn't true, with coefficients remaining positively correlated.
 
@@ -887,11 +945,11 @@ cor(tidy_pgs$white$estimate, tidy_pgs_control_agefb$estimate)
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
 | Age 1st birth | `r tbl$agefb[1]`      | `r tbl$agefb[2]`      | `r tbl$agefb[3]`      |
 
-: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
+: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps tbl-colwidths="\[16,28,28,28\]"}
 
-The economic theory of fertility in @hugh2022human implies that correlations between education and RLRS should be more negative for lower-income/education people, single parents and people who have children earlier.[^2] This in turn implies that correlations between PGS coefficients on education and on RLRS should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
+The economic theory of fertility also implies that correlations between education and RLRS should be more negative for lower-income/education people, single parents and people who have children earlier.[^1] This in turn implies that correlations between PGS coefficients on education and on RLRS should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
 
-[^2]: See @hugh2022human equation (6) and following.
+[^1]: See @hugh2022human equation (6) and following.
 
 ```{r}
 #| label: stat-pgs-over-time
@@ -916,10 +974,187 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on fertility is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Looking within the sample, changes in PGS by birth year are small for both groups, and are probably mostly driven by selective mortality.
 
+Lastly, we would like to know natural selection's effect sizes. The bivariate correlations of PGS with RLRS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated correlations are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
+
+$$
+\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}
+}$$
+
+where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the $R^2$ of the measured PGS on the target phenotype [@becker2021resource]. I make this calculation using heritabilities from twin studies, and SNP- or chip-heritabilities, reported in @abdellaoui2021dissecting (chip-heritability is the total variance explained by common SNPs recorded by array chips).
+
+@fig-true-effects reports estimates for the true PGS as well as the "true chip-PGS" - the true best predictor of the phenotype using only variants recorded on the array chip, for phenotypes where selection effects were nominally significant and a measure of the phenotype was available in-sample and was significantly predicted by the PGS. It's important to understand that estimates for the true PGS are more uncertain than for the true chip-PGS. Ideally, the true chip-PGS differs only from the recorded PGS because of sampling error in calculating the underlying summary statistics.[^2] The true PGS would use many more genetic variants, perhaps including e.g. *de novo* mutations, and the relationship between these variants' effect on fertility and on the target phenotype may not be the same as for genetic variants captured on array chips.
+
+[^2]: But even the chip-PGS might contain non-random noise from correlated environments.
+
+The HRS contains multiple PGS for several phenotypes, typically with the $R^2$ increasing over time. Appendix @fig-check-correction runs a sanity check in which I predict the coefficient of later scores on fertility, using earlier scores and the above formula. Mostly, earlier PGS do a good job at predicting the effect of later PGS on fertility, with the later PGS's point estimate within the earlier PGS's 95% confidence interval. One exception is that the point estimate of the earlier PGS for general cognition, GENCOG, on the effect of the later PGS GCOG2 has the wrong sign.
+
+As a rough rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. Given the uncertainties about the exact nature of "noise" in existing PGS, the estimates -- even for chip heritability -- mostly show the limits of our knowledge, and should be treated as best guesses only.
+
+```{r}
+#| label: stat-boot-true-effects
+
+#' Calculate corrected PGS
+#'
+#' @param w Weights
+#' @param data Data frame
+#' @param pgs Name(s) of polygenic score(s) columns in  `data`.
+#' @param phenotype Name of target phenotype in `data`
+#' @param chip_h2 Chip-heritability
+#' @param twin_h2 Twin-study heritability
+#'
+#' @return A vector of corrected estimates of effects on fertility, 
+#'   named like `source.to.target` 
+#'   where `source` is one of `pgs` and target is either a `pgs` or the
+#'   chip-PGS or true PGS. If `pgs` has more than one element then
+#'   the function will correct pgs using each other as a sanity check. If
+#'   `source == target` then that is the original uncorrected score.
+#' @noRd
+#'
+#' @examples
+boot_correct <- function (w, data, pgs, phenotype, chip_h2, twin_h2) {
+  
+  fs_fert <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
+  fs_phen <- map(pgs, \(x) reformulate(c(x, pcs), response = phenotype))
+
+  ms_fert <- map(fs_fert, \(x) lm(x, data = data, weights = w))
+  ms_phen <- map(fs_phen, \(x) lm(x, data = data, weights = w))
+  bhat_fert <- map2_dbl(ms_fert, pgs, \(x, y) coef(x)[[y]])
+  bhat_phen <- map2_dbl(ms_phen, pgs, \(x, y) coef(x)[[y]])
+
+  r2_phen <- map_dbl(ms_phen, \(x) {
+    an <- car::Anova(x)
+    an$`Sum Sq`[1]/sum(an$`Sum Sq`)  # incremental R2 of first term
+  })
+
+  r2_phen <- c(r2_phen, chip_h2, twin_h2)
+  # the correction factor
+  # lower triangular part of this shows how much you multiply to get from
+  # COLNAME to ROWNAME
+  rhos <- outer(r2_phen, r2_phen, \(x, y) sqrt(x/y)) 
+  rownames(rhos) <- colnames(rhos) <- c(pgs, "Chip", "Twin")
+
+  # multiply first column by bhat_edu[1] to give predictions from the
+  # first PGS to the next ones; etc.
+  # The diagonals of b_edu are exactly equal to bhat_edu
+  # arow,column gives the predicted value of b by ROWNAME for COLNAME
+  b_phen <- apply(rhos, 1, \(x) x * c(bhat_phen, NA, NA))
+  b_fert <- apply(rhos, 1, \(x) x * c(bhat_fert, NA, NA))
+
+  # don't include the last two rows of NA predictions "from chip/twin h2"
+  b_fert <- b_fert[seq_along(pgs), , drop = FALSE]
+
+  res <- c(b_fert)
+  # TODO: are the "backward estimates" wrong?
+  # TODO: check against the python tool from the PGI repository paper
+  res_names <- outer(rownames(b_fert), colnames(b_fert),
+                      \(x, y) paste0(x, ".to.", y))
+  names(res) <- c(res_names)
+  
+  res
+}
+
+n_reps_true <- 99
+rand_boot <- rand |> as.svrepdesign(type = "bootstrap", 
+                                    replicates = n_reps_true)
+
+correct_scores <- tibble::tribble(
+  ~pgs                         , ~phenotype  , ~chip_h2, ~twin_h2,
+  c("ADHD_PGC10", "ADHD_PGC17"), "adhd_score", 0.21    , 0.75    ,
+  c("EDU2", "EDU3", "EA3")     , "raedyrs"   , 0.10    , 0.43    ,  
+  "AFBC"                       , "agefbn"    , 0.05    , 0.26    ,
+  "NEUROT"                     , "neurot"    , 0.10    , 0.37    ,
+  "CD"                         , "r10hearte" , 0.22    , 0.4     ,
+  "T2D"                        , "r10diabe"  , 0.18    , 0.22    , 
+  c("MDD", "MDD2")             , "r10cesd"   , 0.08    , 0.37    ,
+#  "ANXCC"                      , "anxiety"   , 0.31    , 0.45    ,
+  "AI"                         , "age_smoked", 0.05    , 0.50    ,
+  c("GENCOG", "GCOG2")         , "r10cogtot" , 0.19    , 0.86
+)
+
+correct_scores <- drop_na(correct_scores)
+# Sources for chip/twin h2; Abdel.
+# general cognition used h2 for "adult IQ"
+# Except:
+# heart disease 0.4 to 0.6 from https://www.nejm.org/doi/full/10.1056/nejm199404143301503
+# via https://www.jacc.org/doi/full/10.1016/j.jacc.2014.12.033
+# T2D  0.22 to 0.73...
+# https://www.cell.com/ajhg/pdf/S0002-9297(12)00031-6.pdf
+# https://www.cambridge.org/core/services/aop-cambridge-core/content/view/94E0005D626FB0399AA8FDDAC82F970E/S1832427415000833a.pdf/div-class-title-the-concordance-and-heritability-of-type-2-diabetes-in-34-166-twin-pairs-from-international-twin-registers-the-discordant-twin-discotwin-consortium-div.pdf
+# anxiety (nb not social anxiety!)
+# https://ajp.psychiatryonline.org/doi/full/10.1176/ajp.156.2.246
+# generalized anxiet disorder 42%:
+# https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0134865
+# age of smoking initiation, including chip heritability
+# http://www.matthewckeller.com/publications/Evans_Addiction_2021.pdf
+# CAD chip heritability
+# https://academic.oup.com/cardiovascres/article/113/8/973/2965332?login=false
+# type ii diabetes chip heritability
+# https://www.nature.com/articles/s41588-018-0241-6
+# 'current anxiety symptoms' chip heritability
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7237282/
+
+results_df <- list()
+for (i in seq(nrow(correct_scores))) {
+  source_pgs <- correct_scores$pgs[[i]]
+  phenotype <- correct_scores$phenotype[[i]]
+  chip_h2 <- correct_scores$chip_h2[[i]]
+  twin_h2 <- correct_scores$twin_h2[[i]]
+  
+  results <- withReplicates(rand_boot, theta = boot_correct, 
+                            pgs = source_pgs, phenotype = phenotype, 
+                            chip_h2 = chip_h2, twin_h2 = twin_h2)
+  results_df[[phenotype]] <- results |>
+    as.data.frame() |>
+    tibble::rownames_to_column(var = "rn") |>
+    cbind(confint(results)) |>
+    tibble::remove_rownames() |>
+    setNames(c("rn", "mean", "SE", "conf.low", "conf.high")) |> 
+    mutate(
+      phenotype = phenotype,
+      source.pgs = str_remove(rn, ".to.*"),
+      target.pgs = str_remove(rn, ".*.to."),
+      rn = NULL,
+      .before = 1
+    )
+}
+
+results_df <- list_rbind(results_df)
+```
+
+```{r}
+#| label: fig-true-effects
+#| fig-cap: |
+#|   Estimated effects on RLRS of true polygenic scores calculated
+#|   using estimates of chip- and twin-heritability and the most recent
+#|   polygenic score.
+
+# TODO: maybe just use the polygenic score name not the phenotype?
+# TODO: why are some result bounds negative? e.g. ADHD? Presumably
+#. because can have negative effect on RLRS?
+# TODO: check the original phenotypes from which h2 ests were derived...
+#. - is CAD the same as coronary heart disease (r10hearte)?
+# TODO: why is ANXCC not predicting anxiety?
+results_df |> 
+  mutate(
+    Phenotype = nice_names[source.pgs],
+    Heritability = target.pgs
+  ) |> 
+  filter(Heritability %in% c("Chip", "Twin"), ! source.pgs %in% old_pgs) |> 
+  ggplot(aes(y = Phenotype, x = mean, xmin = conf.low, xmax = conf.high,
+             color = Heritability)) +
+    geom_vline(xintercept = 0, color = "grey60") +
+    geom_pointrange(aes(linetype = Heritability == "Twin"),
+                    position = position_dodge(0.2)) +
+    scale_linetype(guide = "none") +
+    coord_cartesian(xlim = c(- 0.3, 0.3)) +
+    labs(x = "Corrected effect on RLRS", y = "") +
+    theme_minimal() 
+
+```
+
 # Discussion
 
 The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education.
-
 
 # Appendix
 
@@ -1120,6 +1355,45 @@ tidy_pgs_x_agefb$white |>
                         calc_n(mod_pgs_x_agefb))
       ) +
       themes_x
+
+```
+
+```{r}
+#| label: fig-check-correction
+#| fig-cap: |
+#|   Estimated effects of series of PGS using errors-in-variables 
+#|   correction. "Own" is the uncorrected estimate using the PGS
+#|   itself. Other estimates are from earlier or later PGS targeting
+#|   the same phenotype and corrected via the method in @becker2021resource.
+#| fig-height: 6
+
+results_df |> 
+  filter(length(unique(source.pgs)) > 1, .by = phenotype) |> 
+  filter(! target.pgs %in% c("Chip", "Twin")) |> 
+  mutate(
+    Phenotype = case_match(phenotype,
+                           "adhd_score" ~ "ADHD",
+                           "r10cesd" ~ "Depression",
+                           "r10cogtot" ~ "Cognition",
+                           "raedyrs" ~ "Educ. attainment"
+                           ),
+    Target = fct_relevel(target.pgs,
+                         "ADHD_PGC17", "ADHD_PGC10", "GCOG2", "GENCOG",
+                         "MDD2", "MDD", "EA3", "EDU3", "EDU2"),
+    Source = ifelse(source.pgs == target.pgs, "Own", source.pgs),
+  ) |> 
+  ggplot(aes(y = Target, x = mean, xmin = conf.low, xmax = conf.high,
+             color = Source)) +
+    geom_vline(xintercept = 0, color = "grey60") +
+    geom_pointrange(position = position_dodge(0.7)) +
+    geom_text(aes(x = mean, label = Source), hjust = "center", 
+              vjust = 1.5,
+              position = position_dodge(0.7), size = 3) + 
+    scale_color_manual(values = c("Own" = "red"), guide = "none") +
+    facet_grid(rows = vars(Phenotype), scales = "free", space = "free") +
+    labs(x = "Estimated effect on RLRS with correction", y = "Target PGS") +
+    coord_cartesian(xlim = c(-0.05, 0.05)) + 
+    theme_minimal() 
 
 ```
 
