@@ -9,7 +9,8 @@ abstract: |
   scores which correlate negatively (positively) with education are
   selected for (against). Selection coefficients are larger among low-income
   and unmarried parents, but not among younger parents or those with less 
-  education.
+  education. I also estimate effect sizes corrected for noise in the 
+  polygenic scores. 
 date: "September 2023"
 format: 
   pdf:
@@ -980,7 +981,9 @@ $$
 \hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}
 }$$
 
-where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the $R^2$ of the measured PGS on the target phenotype [@becker2021resource]. I make this calculation using heritabilities from twin studies, and SNP- or chip-heritabilities, reported in @abdellaoui2021dissecting (chip-heritability is the total variance explained by common SNPs recorded by array chips).
+where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the $R^2$ of the measured PGS on the target phenotype [@becker2021resource]. I make this calculation using heritabilities from twin studies, and SNP- or chip-heritabilities (the total variance explained by SNPs recorded on array chips).[^2]
+
+[^2]: Heritability estimates are from @marenberg1994genetic and @nikpay2017partitioning for coronary heart disease); @willemsen2015concordance and @mahajan2018fine for Type II diabetes; @evans2021genetic for age of smoking initiation; and @abdellaoui2021dissecting for everything else. I used low-end heritability estimates for Type II diabetes (22%) and heart disease (40%).
 
 @fig-true-effects reports estimates for phenotypes where selection effects were nominally significant and a measure of the phenotype was available in-sample and was significantly predicted by the PGS. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$ , limitations of the within-sample phenotypes, noise from correlated environments, and for twin-heritability, different relationships with fertility among variants not measured on the chip. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
 
@@ -1090,7 +1093,7 @@ correct_scores <- drop_na(correct_scores)
 # 'current anxiety symptoms' chip heritability
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7237282/
 
-results_df <- list()
+corrected_effects <- list()
 for (i in seq(nrow(correct_scores))) {
   source_pgs <- correct_scores$pgs[[i]]
   phenotype <- correct_scores$phenotype[[i]]
@@ -1100,7 +1103,7 @@ for (i in seq(nrow(correct_scores))) {
   results <- withReplicates(rand_boot, theta = boot_correct, 
                             pgs = source_pgs, phenotype = phenotype, 
                             chip_h2 = chip_h2, twin_h2 = twin_h2)
-  results_df[[phenotype]] <- results |>
+  corrected_effects[[phenotype]] <- results |>
     as.data.frame() |>
     tibble::rownames_to_column(var = "rn") |>
     cbind(confint(results)) |>
@@ -1115,13 +1118,13 @@ for (i in seq(nrow(correct_scores))) {
     )
 }
 
-results_df <- list_rbind(results_df)
+corrected_effects <- list_rbind(corrected_effects)
 ```
 
 ```{r}
 #| label: fig-true-effects
 #| fig-cap: |
-#|   Estimated effects on RLRS of true polygenic scores calculated
+#|   Estimated coefficients of true polygenic scores on RLRS calculated
 #|   using estimates of chip- and twin-heritability and the most recent
 #|   polygenic score.
 
@@ -1131,7 +1134,7 @@ results_df <- list_rbind(results_df)
 # TODO: check the original phenotypes from which h2 ests were derived...
 #. - is CAD the same as coronary heart disease (r10hearte)?
 # TODO: why is ANXCC not predicting anxiety?
-results_df |> 
+corrected_effects |> 
   mutate(
     Phenotype = nice_names[source.pgs],
     Heritability = target.pgs
@@ -1144,7 +1147,7 @@ results_df |>
                     position = position_dodge(0.2)) +
     scale_linetype(guide = "none") +
     coord_cartesian(xlim = c(- 0.3, 0.3)) +
-    labs(x = "Corrected effect on RLRS", y = "") +
+    labs(x = "Corrected coefficient on RLRS", y = "") +
     theme_minimal() 
 
 ```
@@ -1364,7 +1367,7 @@ tidy_pgs_x_agefb$white |>
 #|   the same phenotype, corrected via the method in @becker2021resource.
 #| fig-height: 6
 
-results_df |> 
+corrected_effects |> 
   filter(length(unique(source.pgs)) > 1, .by = phenotype) |> 
   filter(! target.pgs %in% c("Chip", "Twin")) |> 
   filter(
