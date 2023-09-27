@@ -984,10 +984,11 @@ where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is t
 
 @fig-true-effects reports estimates for phenotypes where selection effects were nominally significant and a measure of the phenotype was available in-sample and was significantly predicted by the PGS. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$ , limitations of the within-sample phenotypes, noise from correlated environments, and for twin-heritability, different relationships with fertility among variants not measured on the chip. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
 
-The HRS contains multiple PGS for several phenotypes, typically with the $R^2$ increasing over time. Appendix @tbl-check-correction runs a sanity check in which I predict the coefficient of later scores on fertility, using earlier scores and the above formula. Mostly, earlier PGS do a good job at predicting the effect of later PGS on fertility, with the later PGS's point estimate within the earlier PGS's 95% confidence interval. One exception is that the point estimate of the earlier PGS for general cognition, GENCOG, on the effect of the later PGS GCOG2 has the wrong sign.
+The HRS contains multiple PGS for several phenotypes, typically with the $R^2$ increasing over time. Appendix @fig-check-correction runs a sanity check in which I predict the coefficient of later scores on fertility, using earlier scores and the above formula. Mostly, earlier PGS do a good job at predicting the effect of later PGS on fertility, with the later PGS's point estimate within the earlier PGS's 95% confidence interval.
 
 ```{r}
 #| label: stat-boot-true-effects
+#| cache: true
 
 #' Calculate corrected PGS
 #'
@@ -1049,7 +1050,7 @@ boot_correct <- function (w, data, pgs, phenotype, chip_h2, twin_h2) {
   res
 }
 
-n_reps_true <- 99
+n_reps_true <- 199
 rand_boot <- rand |> as.svrepdesign(type = "bootstrap", 
                                     replicates = n_reps_true)
 
@@ -1150,7 +1151,7 @@ results_df |>
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. Lastly, the smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education.
+The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. The smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education. Lastly, true effect sizes are estimated and are typically between 0-0.2 standard deviations.
 
 # Appendix
 
@@ -1357,15 +1358,18 @@ tidy_pgs_x_agefb$white |>
 ```{r}
 #| label: fig-check-correction
 #| fig-cap: |
-#|   Estimated effects of series of PGS using errors-in-variables 
-#|   correction. "Own" is the uncorrected estimate using the PGS
-#|   itself. Other estimates are from earlier or later PGS targeting
-#|   the same phenotype and corrected via the method in @becker2021resource.
+#|   Estimated coefficients of series of PGS on fertility 
+#|   using errors-in-variables correction. "Own" is the uncorrected estimate
+#|   using the PGS itself. Other estimates are from earlier PGS targeting
+#|   the same phenotype, corrected via the method in @becker2021resource.
 #| fig-height: 6
 
 results_df |> 
   filter(length(unique(source.pgs)) > 1, .by = phenotype) |> 
   filter(! target.pgs %in% c("Chip", "Twin")) |> 
+  filter(
+    ! target.pgs %in% old_pgs
+  ) |> 
   mutate(
     Phenotype = case_match(phenotype,
                            "adhd_score" ~ "ADHD",
@@ -1373,9 +1377,7 @@ results_df |>
                            "r10cogtot" ~ "Cognition",
                            "raedyrs" ~ "Educ. attainment"
                            ),
-    Target = fct_relevel(target.pgs,
-                         "ADHD_PGC17", "ADHD_PGC10", "GCOG2", "GENCOG",
-                         "MDD2", "MDD", "EA3", "EDU3", "EDU2"),
+    Target = target.pgs,
     Source = ifelse(source.pgs == target.pgs, "Own", source.pgs),
   ) |> 
   ggplot(aes(y = Target, x = mean, xmin = conf.low, xmax = conf.high,
@@ -1384,10 +1386,10 @@ results_df |>
     geom_pointrange(position = position_dodge(0.7)) +
     geom_text(aes(x = mean, label = Source), hjust = "center", 
               vjust = 1.5,
-              position = position_dodge(0.7), size = 3) + 
+              position = position_dodge(0.7), size = 2.5) + 
     scale_color_manual(values = c("Own" = "red"), guide = "none") +
     facet_grid(rows = vars(Phenotype), scales = "free", space = "free") +
-    labs(x = "Estimated effect on RLRS with correction", y = "Target PGS") +
+    labs(x = "Corrected coefficient on RLRS", y = "Target PGS") +
     coord_cartesian(xlim = c(-0.05, 0.05)) + 
     theme_minimal() 
 
