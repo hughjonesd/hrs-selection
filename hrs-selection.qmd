@@ -396,11 +396,9 @@ Here, I make an independent test of the theory in the US population, using the H
 
 # Data
 
-The HRS sample focuses on cohorts born between 1920 and 1960, but contains some younger and older participants. I include only male participants born before 1965 and female participants born before 1970, which guarantees that most will have completed their fertility by 2010.
+The HRS sample focuses on cohorts born between 1920 and 1960, but contains some younger and older participants. I include only male participants born before 1965 and female participants born before 1970, which guarantees that most will have completed their fertility by 2010. The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants.
 
-The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants. Genotyping took place in 2006, 2008 and subsequent years. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs)` scores.
-
-PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten within-ethnicity principal components of the DNA array data.
+Genotyping took place in 2006, 2008 and subsequent years. I discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. I also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs)` scores. PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, I control for ten within-ethnicity principal components of the DNA array data.
 
 The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population.
 
@@ -696,9 +694,10 @@ if (significant(ci_boot_sibs$black)) warning("ci_boot_sibs$black significant")
 ```{r}
 #| label: fig-rlrs-edu
 #| fig-cap: |
-#|   Scatterplot of PGS regression coefficients on RLRS and years of
-#|   education. Controls include 10 principal components of genetic array
-#|   data. Dashed lines show linear regressions.
+#|   Scatterplot of PGS regression coefficients on RLRS against 
+#|   coefficients on years of education. Each dot is one polygenic score.
+#|   Controls include 10 principal components of genetic array
+#|   data. Dashed lines are fitted from linear regressions.
 #| fig-subcap:
 #|   - ""
 #|   - ""
@@ -745,7 +744,34 @@ cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
 if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, although note that standard errors are large (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`).
+```{r}
+#| label: stat-bootstrap-gen-cor
+#| cache: true
+
+n_reps_gen_cor <- 199
+
+f_resp <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
+f_sibs <- map(pgs, \(x) reformulate(c(x, pcs), response = "r10sibs"))
+  
+estimate_gen_cor <- function (w, data) {
+  data$w <- w # avoid w getting lost by map and lm
+  m_resp <- map(f_resp, \(x) lm(x, data, weights = w))
+  m_sibs <- map(f_sibs, \(x) lm(x, data, weights = w/r10sibs))
+  
+  coef_resp <- map2_dbl(m_resp, pgs, \(x, y) coef(x)[[y]])
+  coef_sibs <- map2_dbl(m_sibs, pgs, \(x, y) coef(x)[[y]])
+  c(gen_cor = cor(coef_resp, coef_sibs))
+}
+
+rand_boot <- rand |> 
+    subset(ethnicity == "white") |> 
+    as.svrepdesign(type = "bootstrap", replicates = n_reps_gen_cor)
+
+gen_cor <- withReplicates(rand_boot, theta = estimate_gen_cor)
+ci_gen_cor <- confint(gen_cor)
+```
+
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, with large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). However, there is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children, of `r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`.
 
 I next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
