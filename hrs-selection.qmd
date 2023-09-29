@@ -326,6 +326,7 @@ rand <- rand |>
     r10hearte = as.numeric(r10hearte),
     r10diabe = as.numeric(r10diabe),
     edu = chop(as.numeric(raedyrs), 13, lbl_discrete(symbol = "-")),
+    born = chop(rabyear, 1942, labels = c("pre-1942", "post-1942")),
     # wave 10 is 2010
     # table(rands$white$r10mstat)
      # 1                 1.married
@@ -360,7 +361,7 @@ rand <- rand |>
   select(ethnicity, all_of(pgs), all_of(old_pgs), 
          all_of(pcs), weight, raevbrn, rlrs,
          raedyrs, r10sibs, edu, income_med, married, agefb, agefbn,
-         rabyear, raehsamp, raestrat, parent_weight, ragender,
+         rabyear, born, raehsamp, raestrat, parent_weight, ragender,
          adhd_score, neurot, r10diabe, r10hearte, r10cesd, age_smoked,
          anxiety, r10cogtot)
 
@@ -559,7 +560,7 @@ n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 # I don't mention this below so turning it off for now
 # TODO: should I mention it? It's a low correlation.
 
-n_reps_eth_diff <- 99
+n_reps_eth_diff <- 199
 rand_boot <- rand |> 
     as.svrepdesign(type = "bootstrap", replicates = n_reps_eth_diff)
 
@@ -645,7 +646,7 @@ options(old_opts)
 # white coefs. Results were always absolutely insignificant (and conf
 # intervals too wide to be informative).
 
-n_reps_eth_diff <- 99
+n_reps_eth_diff <- 199
 rand_boot <- rand |> 
     as.svrepdesign(type = "bootstrap", replicates = n_reps_eth_diff)
 
@@ -784,7 +785,7 @@ I next test part 2 of the theory by interacting PGS with measures of education, 
 old_opts <- options(survey.multicore = TRUE) 
 
 # all confindence intervals were too wide to be informative
-n_reps_x <- 99
+n_reps_x <- 199
 
 calc_diff_cor_ed <- function (w, data, term) {
   groups <- switch(term,
@@ -843,16 +844,16 @@ options(old_opts)
 #| cache-lazy: false
 #| cache-comments: false
 
-old_opts <- options(survey.multicore = TRUE) 
 
-n_reps_x_es <- 99
+n_reps_x_es <- 199
 
 calc_diff_effect_size <- function (w, data, term) {
   groups <- switch(term,
                 edu = c("0-12", "13-17"),
                 income_med = c("Low", "High"),
                 married = c("Other", "Married"),
-                agefb = c("Low", "High"))
+                agefb = c("Low", "High"),
+                born = c("pre-1942", "post-1942"))
   groups <- paste0(":", term, groups) # colon for the cross term
   low_group <- groups[1]
   high_group <- groups[2]
@@ -871,31 +872,32 @@ calc_diff_effect_size <- function (w, data, term) {
 }
 
 
-diff_effect_size <- ci <- est <- tbl <- list()
+effect_sizes <- ci <- est <- tbl <- list()
 
-terms <- c("edu", "income_med", "married", "agefb")
+terms <- c("edu", "income_med", "married", "agefb", "born")
 
 rand_boot <- rand |> 
   subset(ethnicity == "white") |> 
   as.svrepdesign(type = "bootstrap", replicates = n_reps_x_es)
 
 for (term in terms) {
-  diff_effect_size[[term]] <- 
+  effect_sizes[[term]] <- 
     withReplicates(rand_boot, theta = calc_diff_effect_size, term = term)  
-  ci[[term]] <- confint(diff_effect_size[[term]])
-  est[[term]] <- as.numeric(diff_effect_size[[term]])
+  ci[[term]] <- confint(effect_sizes[[term]])
+  est[[term]] <- as.numeric(effect_sizes[[term]])
   tbl[[term]] <- sprintf("%.3f (%.3f to %.3f)", est[[term]], 
                          ci[[term]][, 1], ci[[term]][, 2])
 }
 
-options(old_opts)
 
 ```
 
 ```{r}
-#| label: stat-agefb-bootstrap
+#| label: stat-bootstrap-agefb
+#| cache: true
 
-n_reps_agefb <- 9
+n_reps_agefb <- 199
+
 calc_cor_agefb <- function (w, data) {
   forms <- pgs |> map(\(x) reformulate(c(x, pcs), response = "raevbrn"))
   mods_low <- map(forms, \(x) lm(x, data, subset = agefb == "Low",
@@ -942,13 +944,13 @@ n_discordant <- sum(sign(tidy_agefb_wide$Low) != sign(tidy_agefb_wide$High))
 
 Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents.
 
-Appendix @fig-x-agefb splits respondents by age at first birth (median within each gender). Note that the N is lower here due to missing values. There are no large differences between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Also, in the UK Biobank sample, PGS coefficients on fertility controlling for age at first birth were negatively correlated with uncontrolled coefficient; here, that isn't true, with coefficients remaining positively correlated.
+Appendix @fig-x-agefb splits respondents by age at first birth (median within each gender). Note that the N is lower here due to missing values. There are no large differences in absolute effect size between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Also, in the UK Biobank sample, PGS coefficients on fertility controlling for age at first birth were negatively correlated with the uncontrolled coefficients; here, that isn't true, with coefficients remaining positively correlated.
 
 ```{r}
 #| label: stat-control-agefb
-#| eval: false
 
-# cselection effects ontrolling for age at first birth
+
+# selection effects controlling for age at first birth
 # 
 form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn", pcs), 
                                                     response = "rlrs"))
@@ -959,7 +961,10 @@ tidy_pgs_control_agefb <- map(mod_pgs_control_agefb, broom::tidy) |>
                           list_rbind() |> 
                           filter(term %in% pgs)
 
-cor(tidy_pgs$white$estimate, tidy_pgs_control_agefb$estimate)
+cor_raw_controlled <- cor(tidy_pgs$white$estimate,
+                          tidy_pgs_control_agefb$estimate)
+
+stopifnot(cor_raw_controlled >= 0)
 
 ```
 
@@ -971,8 +976,9 @@ cor(tidy_pgs$white$estimate, tidy_pgs_control_agefb$estimate)
 | Income        | `r tbl$income_med[1]` | `r tbl$income_med[2]` | `r tbl$income_med[3]` |
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
 | Age 1st birth | `r tbl$agefb[1]`      | `r tbl$agefb[2]`      | `r tbl$agefb[3]`      |
+| Birth year | `r tbl$born[1]`      | `r tbl$born[2]`      | `r tbl$born[3]`      |
 
-: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps tbl-colwidths="\[16,28,28,28\]"}
+: Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
 
 The economic theory of fertility also implies that correlations between education and RLRS should be more negative for lower-income/education people, single parents and people who have children earlier.[^1] This in turn implies that correlations between PGS coefficients on education and on RLRS should be more negative among these groups. I tested this with bootstraps, but confidence intervals were always too wide to be informative.
 
@@ -999,7 +1005,37 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 ```
 
-Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on fertility is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Looking within the sample, changes in PGS by birth year are small for both groups, and are probably mostly driven by selective mortality.
+
+```{r}
+#| label: stat-x-bootstrap-birthyear
+#| cache: true
+
+n_reps_birthyear <- 199
+
+forms <- pgs |> map(\(x) reformulate(c(x, pcs), response = "raevbrn"))
+
+calc_birthyear <- function (w, data) {
+  data$w <- w
+  mods_young <- map(forms, \(x) lm(x, data, subset = rabyear > 1945,
+                                 weights = w))
+  mods_old <- map(forms, \(x) lm(x, data, subset = rabyear <= 1945,
+                                  weights = w))
+  coefs_young <- map2_dbl(mods_young, pgs, \(x, y) coef(x)[[y]])
+  coefs_old <- map2_dbl(mods_old, pgs, \(x, y) coef(x)[[y]])
+  
+  c(cor = cor(coefs_young, coefs_old))
+}
+
+rand_boot <- rand |> 
+  subset(ethnicity == "white") |> 
+  as.svrepdesign(type = "bootstrap", replicates = n_reps_birthyear)
+
+cor_agefb <- withReplicates(rand_boot, theta = calc_birthyear)
+
+
+```
+
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Looking within the sample, changes in PGS by birth year are small for both groups, and are probably mostly driven by selective mortality. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s. The last line of @tbl-x-bootstraps shows that effect sizes are larger for respondents born after 1942, but the difference is imprecisely estimated and not significant.
 
 Lastly, we would like to know natural selection's effect sizes. The bivariate correlations of PGS with RLRS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated correlations are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
 
@@ -1016,7 +1052,7 @@ where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is t
 The HRS contains multiple PGS for several phenotypes, typically with the $R^2$ increasing over time. Appendix @fig-check-correction runs a sanity check in which I predict the coefficient of later scores on fertility, using earlier scores and the above formula. Mostly, earlier PGS do a good job at predicting the effect of later PGS on fertility, with the later PGS's point estimate within the earlier PGS's 95% confidence interval.
 
 ```{r}
-#| label: stat-boot-true-effects
+#| label: stat-bootstrap-true-effects
 #| cache: true
 
 #' Calculate corrected PGS
