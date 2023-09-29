@@ -712,7 +712,7 @@ for (eth in eths) {
           geom_point() +
           geom_smooth(method = "lm", formula = y ~ x, se = FALSE, 
                       linetype = "dashed", colour = "red", linewidth = 0.5) +
-          scale_y_continuous(breaks = seq(-0.35, 0.15, 0.05),
+          scale_y_continuous(breaks = seq(-0.2, 0.2, 0.02),
                              labels = scales::label_number(0.01)) +
           coord_cartesian(xlim = c(-.3, .75)) +
           theme_light() + 
@@ -771,7 +771,7 @@ gen_cor <- withReplicates(rand_boot, theta = estimate_gen_cor)
 ci_gen_cor <- confint(gen_cor)
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, with large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). However, there is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children, of `r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`.
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, with large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). However, there is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (among whites: `r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`.
 
 I next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
@@ -1187,6 +1187,8 @@ The results here provide qualified support for the economic theory of fertility 
 ## Acknowledgements
 
 The HRS (Health and Retirement Study) is sponsored by the National Institute on Aging (grant number NIA U01AG009740) and is conducted by the University of Michigan.
+
+Code to reproduce this paper is available at <https://github.com/hughjonesd/hrs-selection>.
 
 ## Figures
 
