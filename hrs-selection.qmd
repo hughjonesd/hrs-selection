@@ -356,6 +356,13 @@ rand$neurot <- rand |>
 pgs <- str_replace(pgs, "^01", "ALZ_01")
 names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 
+```
+
+```{r}
+#| label: prog-cleanup
+
+# clean up cache so it doesn't get too big
+rm(rand_orig, trk_orig, rands, rand_fam, rand_2010, rand_2016)
 
 rand <- rand |> 
   select(ethnicity, all_of(pgs), all_of(old_pgs), 
@@ -384,8 +391,6 @@ rand <- svydesign(
 n_white <- nrow(rand |> subset(ethnicity == "white"))
 n_black <- nrow(rand |> subset(ethnicity == "black"))
 
-# clean up cache so it doesn't get too big
-rm(rand_orig, trk_orig, rands, rand_fam, rand_2010, rand_2016)
 ```
 
 @hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components.
@@ -772,7 +777,7 @@ gen_cor <- withReplicates(rand_boot, theta = estimate_gen_cor)
 ci_gen_cor <- confint(gen_cor)
 ```
 
-I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, with large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). However, there is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (among whites: `r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`.
+I can also examine natural selection in the previous generation, by regressing PGS on respondents' number of living siblings in 2010. (Data for dead siblings has too many missing values to use.) I reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are insignificant for both ethnic groups, with large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). However, there is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (among whites: `r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
 
 I next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on I only use the white subsample: there are too few black respondents to be informative.
 
@@ -976,7 +981,7 @@ stopifnot(cor_raw_controlled >= 0)
 | Income        | `r tbl$income_med[1]` | `r tbl$income_med[2]` | `r tbl$income_med[3]` |
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
 | Age 1st birth | `r tbl$agefb[1]`      | `r tbl$agefb[2]`      | `r tbl$agefb[3]`      |
-| Birth year | `r tbl$born[1]`      | `r tbl$born[2]`      | `r tbl$born[3]`      |
+| Birth year    | `r tbl$born[1]`       | `r tbl$born[2]`       | `r tbl$born[3]`       |
 
 : Bootstrap estimates and 95% confidence intervals for mean absolute coefficients of PGS on RLRS in "low" and "high" groups among white respondents. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps tbl-colwidths="[16,28,28,28]"}
 
@@ -1004,7 +1009,6 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
   geom_pointrange(aes(ymax = EA3 + 1.96 * se, ymin = EA3 - 1.96 * se))
 
 ```
-
 
 ```{r}
 #| label: stat-x-bootstrap-birthyear
@@ -1216,7 +1220,13 @@ corrected_effects |>
 
 # Discussion
 
-The results here provide qualified support for the economic theory of fertility as an explanation for contemporary natural selection in humans. PGS which predict less education are being selected for, and PGS which predict more education are being selected against. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. The smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and with education. Lastly, true effect sizes are estimated and are typically between 0-0.2 standard deviations.
+The economic theory of fertility is driven by the trade-off between children and income. On the one hand, a higher hourly wage makes time raising children more costly (a "substitution effect"). On the other hand, higher expected income makes children more affordable (an "income effect"). Prediction 1 of the theory holds when substitution effects dominate income effects. Prediction 2 is driven by the specific form of individuals' preferences for income: when utility for income is sharply curved, the substitution effect is stronger for those who expect to earn less.
+
+The results here support prediction 1 but are more ambiguous for prediction 2. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. The theory can accommodate this non-result, if preferences for income are less curved in the US for whatever reason. But note that *any* theory with a negative relationship between education and fertility will give prediction 1.[^3] In this sense, results here are less supportive of the economic theory specifically.
+
+[^3]: See @balbo2013fertility for a broad review of fertility theories.
+
+The smaller black sample makes most tests inconclusive for this population: I can only say that the data do not reject a negative association between PGS correlations with RLRS and PGS correlations with education. Lastly, estimated effect sizes of "true" polygenic scores are typically between 0-0.2 standard deviations. To know more, we must await more accurate scores.
 
 # Appendix
 
