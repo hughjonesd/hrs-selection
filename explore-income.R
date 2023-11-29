@@ -51,6 +51,7 @@ rw_l <- rw$variables |>
 
 pgs_sig <- tidy_inc$pgs[tidy_inc$sig]
 
+library(ggdark)
 rw_l |>
   filter(pgs %in% pgs_sig) |>
   mutate(
@@ -61,10 +62,12 @@ rw_l |>
   geom_point(alpha = 0.1, size = 0.1) +
   geom_smooth(aes(color = pgs), method = "loess") +
   coord_cartesian( ylim = c(-1, 1), xlim = c(-2, 2)) +
+  dark_theme_minimal() +
   theme(legend.position = "none") +
   labs(
-    title = "Scatterplots of income against significant PGS with loess smoother",
+    title = "Scatterplots of income against significant PGS (fdr < 0.05) with loess smoother",
     subtitle = "Plots show the centre of the distribution but smoother uses all data",
+    caption = "Source: Health and Retirement Study (US)",
     x = "Income (residualized and standardized)",
     y = "PGS"
   )

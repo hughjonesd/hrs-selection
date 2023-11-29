@@ -617,6 +617,17 @@
       ],
       "Hash": "15e9634c0fcd294799e9b2e929ed1b86"
     },
+    "ggdark": {
+      "Package": "ggdark",
+      "Version": "0.2.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "ggplot2"
+      ],
+      "Hash": "98bc9e4ddbb5dfd678e00f4028a7c1c0"
+    },
     "ggplot2": {
       "Package": "ggplot2",
       "Version": "3.4.2",
@@ -641,22 +652,6 @@
         "withr"
       ],
       "Hash": "3a147ee02e85a8941aad9909f1b43b7b"
-    },
-    "ggrepel": {
-      "Package": "ggrepel",
-      "Version": "0.9.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "Rcpp",
-        "ggplot2",
-        "grid",
-        "rlang",
-        "scales",
-        "withr"
-      ],
-      "Hash": "92edfac53774706b4d6099f3ee6f6306"
     },
     "glue": {
       "Package": "glue",

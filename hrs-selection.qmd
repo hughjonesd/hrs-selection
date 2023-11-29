@@ -367,7 +367,8 @@ rm(rand_orig, trk_orig, rands, rand_fam, rand_2010, rand_2016)
 rand <- rand |> 
   select(ethnicity, all_of(pgs), all_of(old_pgs), 
          all_of(pcs), weight, raevbrn, rlrs,
-         raedyrs, r10sibs, edu, income_med, married, agefb, agefbn,
+         raedyrs, r10sibs, edu, income_resid, income_med, married, 
+         agefb, agefbn,
          rabyear, born, raehsamp, raestrat, parent_weight, ragender,
          adhd_score, neurot, r10diabe, r10hearte, r10cesd, age_smoked,
          anxiety, r10cogtot)
