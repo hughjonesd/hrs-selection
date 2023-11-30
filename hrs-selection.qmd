@@ -1312,7 +1312,7 @@ stopifnot(cor_raw_controlled >= 0)
 @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in each pair of groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
 
 |               | Low group             | High group            | Difference            |
-|------------------|------------------|------------------|------------------|
+|---------------|-----------------------|-----------------------|-----------------------|
 | Education     | `r tbl$edu[1]`        | `r tbl$edu[2]`        | `r tbl$edu[3]`        |
 | Income        | `r tbl$income_med[1]` | `r tbl$income_med[2]` | `r tbl$income_med[3]` |
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
