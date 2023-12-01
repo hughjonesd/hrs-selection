@@ -461,13 +461,17 @@ rand <- rand |> left_join(rand_2010,
                           relationship = "one-to-one")
 
 # TE this is average number of kids that your kids have
-rand$div_h10gkid <- rand$h10gkid/rand$raevbrn
+rand$div_h10gkid <- rand$h10gkid / rand$raevbrn
+
+
 # TE 283 people report having grandkids, but having had no children. Weird!
+# This ugly code subsets the data by ethnicity then counts all observations
+# where grandkids is greater than 0 but number of kids is 0
 gkids_unusable_white <- sum(na.omit(ifelse(subset(rand, ethnicity == "white")$h10gkid > 0 & subset(rand, ethnicity == "white")$raevbrn == 0, 1, 0)))
 
-gkids_unusable_black <- sum(na.omit(ifelse(subset(rand, ethnicity == "black")$h10gkid > 0 & subset(rand, ethnicity == "black")$raevbrn==0,1,0)))
+gkids_unusable_black <- sum(na.omit(ifelse(subset(rand, ethnicity == "black")$h10gkid > 0 & subset(rand, ethnicity == "black")$raevbrn == 0, 1, 0)))
 
-# If grandkids but no kids div_gkid is infinite. Replacing with NA
+# TE if grandkids but no kids div_gkid is infinite. Replacing with NA
 rand$div_h10gkid[is.infinite(rand$div_h10gkid)] <- NA
 
 # TE added some variables for grandkid analysis
@@ -515,6 +519,7 @@ rand <- rand |>
   mutate(.by = c(ethnicity, ragender),
     agefb = chop_equally(agefbn, 2, labels = c("Low", "High"))
   )
+
 # TE I've plotted the mean values by year. They look reasonably stable. Beauchamp 2016 took a three year average. I don't think this is necessary
 
 rand$neurot <- rand |> 
@@ -535,6 +540,7 @@ pgs <- unique(c(pgs_white,pgs_black))
 
 # clean up cache so it doesn't get too big
 rm(rand_orig, trk_orig, rands, rand_fam, rand_2010, rand_2016)
+
 # TE we can delete more
 rm(pgen,pgen4a,pgen4e,pgirep,trk_weights)
 
@@ -1365,6 +1371,12 @@ To estimate how natural selection will contribute to changing the phenotype, we 
 write.table(subset(rand$variables, ethnicity == "white"),"pgi_correct_data.txt",
             quote=FALSE, sep="\t")
 
+####################################
+# Formatting parameter values to use
+####################################
+
+# correct_scores holds h2 and R2 values, as well as useful information about the PGS
+# such as group categories taken from the PGI repository and simplified names
 correct_scores        <- readxl::read_excel("PGI_Heritabilities.xlsx", na = "NA", 
                                             range="B1:U53")
                             
@@ -1398,11 +1410,17 @@ correct_scores[which(correct_scores$pgs == "AFB"), "twin_h2"]      <- 0.15
 correct_scores[which(correct_scores$pgs == "NEBwomen"), "twin_h2"] <- 0.28
 
 
+####################################
+# Calculating error corrected estimates
+####################################
+
+# Loop for for calculating results with SNP heritabilities
 map_df(1:nrow(correct_scores), function(i) {
 
   
 system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var', correct_scores[i,"pgs"], ' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2', correct_scores[i,"R2"], ' --h2 ', correct_scores[i,"chip_h2"], ' --weights "weight"', sep=" "))
 
+# This removes "junk" rows in the way of our regression betas
 system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
 reg_snp <- read.table("reg_results", header=TRUE)
 
@@ -1418,7 +1436,7 @@ tibble(
 
 
 
-# Loop for twin results
+# Loop for for calculating results with twin heritabilities
 map_df(1:nrow(correct_scores), function(i) {
 
 
@@ -1474,10 +1492,6 @@ corrected_effects$Category <- case_match(corrected_effects$Category,
 #| fig-height: 6.79
 #| fig-width:  5.98
 
-# TE TODO
-#opts_chunk$set(fig.width = 12, fig.height = 8)
-#570, 600
-# or 5.98 and 6.79 inches
 
 # This removes ADHD due to the low power of the score. Note ADHD predict RLRS after bonferroni! 
 # It also removes NEB
@@ -1488,9 +1502,9 @@ corrected_effects <- subset(corrected_effects, R2 > 0.005)
 # for fitness should be equal to it's heritability... But in HRS the
 # the AFB PGS much more strongly predicts RLRS than the NEB PGS and it's selection
 # is much lower than what the heritability of NEB should be.
-# The low R2 of NEB causes it to be removed, but the genetics for NEB could just be a little different
-# in HRS versus other samples!
-#NEB_result <-  corrected_effects-which(corrected_effects[,"trait"]=="NEBwomen"),]
+# The low R2 of NEB causes it to be removed, but the genetics for NEB 
+# could just be a little different in HRS versus other samples!
+# NEB_result <-  corrected_effects-which(corrected_effects[,"trait"]=="NEBwomen"),]
 
   
 my_labeller <- function(variable, value) {
@@ -1514,7 +1528,7 @@ corrected_effects |>
   facet_grid(Category ~ ., scales = "free_y", space = "free_y", labeller = my_labeller)+
   theme(strip.text.y = element_text(angle = -90,face = "bold"))
   
-
+# Cleaning and saving corrected effects so people can have the exact figures
   corrected_effects$TwinH2_Source <- corrected_effects$Source
   
   corrected_effects <- corrected_effects[, c("trait", "beta", "SE", "Heritability",
