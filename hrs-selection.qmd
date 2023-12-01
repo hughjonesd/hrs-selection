@@ -46,6 +46,7 @@ library(tibble)
 library(haven)
 library(forcats)
 library(dplyr, warn.conflicts = FALSE)
+library(glue)
 library(stringr)
 library(purrr)
 library(carData)
@@ -216,7 +217,6 @@ calc_n <- function (mods, eths = "white", format = "(N = %s)") {
 svyglm_quiet <- function (...) suppressWarnings(svyglm(...))
 
 
-
 # for a confidence interval
 significant <- function (x) {
   stopifnot(is.numeric(x), length(x) == 2)
@@ -244,25 +244,19 @@ pgen4a <- haven::read_dta("data/PGENSCORE4r3/pgenscore4a_r.dta")
 pgen4e <- haven::read_dta("data/PGENSCORE4r3/pgenscore4e_r.dta")
 
 # TE edit PGI repository EUR only
-pgirep <- readr::read_tsv("data/pgi-repository/HRS_PGIrepo_v1.0.txt", show_col_types = FALSE)
+pgirep <- readr::read_tsv("data/pgi-repository/HRS_PGIrepo_v1.0.txt",
+                          show_col_types = FALSE)
 names(pgirep)[1:2] <- c("hhid","pn")
 
-# TE Maybe not the most efficient method, but this code removes MTAG PGS
-pgirep <- select(pgirep,"hhid","pn",matches("PC"),matches("single"))
-
-# TE Going to remove the NEB PGS here
-pgirep <- select(pgirep, -c(PGI_NEBwomen_single) )
-
-# TE this creates simple names for PGS in PGI Rep
-pgi_rep_names <- str_split_fixed(names(pgirep)[23:57],"_",n=3)[,2]
-names(pgirep)[23:57] <- pgi_rep_names
+pgirep <- pgirep |> 
+  select(hhid, pn, matches("single"), -PGI_NEBwomen_single) |> 
+  rename_with(
+    \(x) str_replace(x, "PGI_(.*)_single", "\\1")
+  )
 
 # TE PGI rep does not come pre-standardised. Going to standardize over whole sample to match
 # the approach taken with PGENscores
-pgirep[,3:ncol(pgirep)] <- scale(pgirep[,3:ncol(pgirep)])
-
-
-
+pgirep[, 3:ncol(pgirep)] <- scale(pgirep[, 3:ncol(pgirep)])
 
 # original HRS tracker file
 trk_orig <- haven::read_dta("data/trk2020v3/trk2020tr_r.dta")
@@ -278,7 +272,6 @@ rand_fam <- readRDS("data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
 # rand.
 # Age of oldest kid; grandchildren; num siblings who died
 rand_fam <- rand_fam |> select(hhid, pn, h10ageokid, h10gkid, r10sbdied)
-
 
 # 2010 (and others) record "age started smoking"
 # rand_2010 <- haven::read_dta("data/hd10f6a_STATA/hd10f6a.dta")
@@ -352,16 +345,13 @@ pgen4e_new_names <- pgen4e |>
            -any_of(old_pgs)
            ) 
 
+pgen4e_new_names <- left_join(pgen4e_new_names, pgirep, 
+                              by = join_by(hhid == hhid, pn == pn),
+                              suffix = c("", "pgirep"))
 
-pgirep <- select(pgirep, -matches("^PC\\d"))
-#|>
-#|
-pgen4e_new_names <- left_join(pgen4e_new_names, pgirep, by = join_by(hhid == hhid, pn == pn),suffix=c("","pgirep"))
-
-# TE Height is a duplicated name, but it's with the old PGS, so fixing this manually
-colnames(pgen4e_new_names)[which(names(pgen4e_new_names) == "HEIGHT")] <- "HEIGHTpgirep"
-
-
+# Height is a duplicated name, but it's with the old PGS, so fixing this manually
+pgen4e_new_names <- rename(pgen4e_new_names, 
+                           HEIGHTpgirep = HEIGHT)
 
 # TE here we removed pgenscores that are duplicated in the pgi repository
 # we also remove trans ethnic and African ancestry PGS
@@ -410,11 +400,10 @@ dupe_PGS_black <- c("PTSDAA",
 	            "HBA1CEA" 
               )
               
-pgen4e_new_names <- select(pgen4e_new_names, -hhid, -pn, -any_of(dupe_PGS), -any_of(old_pgs))
+pgen4e_new_names <- select(pgen4e_new_names, 
+                           -hhid, -pn, -any_of(dupe_PGS), -any_of(old_pgs))
 pgs_white <- names(pgen4e_new_names)
-pgs_white[which(pgs_white == "HEIGHT")] <- "HEIGHTpgirep"
-
-
+pgs_white[pgs_white == "HEIGHT"] <- "HEIGHTpgirep"
 
 pgs_black <- pgen4a |>
     rename_with(shorten) |> 
@@ -428,8 +417,6 @@ pgs_black <- pgen4a |>
     names()
 
 rand <- left_join(rand, pgirep, by = join_by(hhid, pn),suffix=c("","pgirep"))
-
-
 
 # weighting
 rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
@@ -464,20 +451,19 @@ rand <- rand |> left_join(rand_2010,
 rand$div_h10gkid <- rand$h10gkid / rand$raevbrn
 
 
-# TE 283 people report having grandkids, but having had no children. Weird!
-# This ugly code subsets the data by ethnicity then counts all observations
+# 83 people report having grandkids, but having had no children. Weird!
+# This code subsets the data by ethnicity then counts all observations
 # where grandkids is greater than 0 but number of kids is 0
-gkids_unusable_white <- sum(na.omit(ifelse(subset(rand, ethnicity == "white")$h10gkid > 0 & subset(rand, ethnicity == "white")$raevbrn == 0, 1, 0)))
+gkids_unusable_white <- rand |> 
+  filter(ethnicity == "white", h10gkid > 0, raevbrn == 0) |> 
+  nrow()
+gkids_unusable_black <- rand |> 
+  filter(ethnicity == "black", h10gkid > 0, raevbrn == 0) |> 
+  nrow()
 
-gkids_unusable_black <- sum(na.omit(ifelse(subset(rand, ethnicity == "black")$h10gkid > 0 & subset(rand, ethnicity == "black")$raevbrn == 0, 1, 0)))
-
-# TE if grandkids but no kids div_gkid is infinite. Replacing with NA
+# if grandkids but no kids div_gkid is infinite. Replacing with NA
 rand$div_h10gkid[is.infinite(rand$div_h10gkid)] <- NA
 
-# TE added some variables for grandkid analysis
-# TE I've also added sampling weights in calculation of mean values
-# note the child weight is just weight* number of kids. so mean_h10gkid 
-# and mean_div_h10gkid are actually the same
 rand <- rand |>
   mutate(.by = rabyear, # calculate this pooling ethnicity
     mean_weight = mean(weight, na.rm = TRUE),
@@ -486,7 +472,8 @@ rand <- rand |>
     rlrs = raevbrn/mean_raevbrn,
     mean_h10gkid = mean(h10gkid*weight/mean_weight, na.rm = TRUE),
     rlrs_h10gkid = h10gkid/mean_h10gkid,
-    mean_div_h10gkid = mean(div_h10gkid*child_weight/mean_child_weight, na.rm = TRUE), 
+    mean_div_h10gkid = mean(div_h10gkid*child_weight/mean_child_weight, 
+                            na.rm = TRUE), 
     rlrs_div_h10gkid = div_h10gkid/mean_div_h10gkid
   ) |>
   mutate(.by = ethnicity, # calculate these stats within-ethnicity
@@ -542,7 +529,7 @@ pgs <- unique(c(pgs_white,pgs_black))
 rm(rand_orig, trk_orig, rands, rand_fam, rand_2010, rand_2016)
 
 # TE we can delete more
-rm(pgen,pgen4a,pgen4e,pgirep,trk_weights)
+rm(pgen, pgen4a, pgen4e, pgirep, trk_weights)
 
 rand <- rand |> 
   select(ethnicity, all_of(pgs), all_of(old_pgs), 
@@ -552,9 +539,6 @@ rand <- rand |>
          parent_weight, ragender, adhd_score, neurot, r10diabe, 
          r10hearte, r10cesd, age_smoked, anxiety, r10cogtot, 
          rlrs_div_h10gkid, child_weight)
-
-
-
 
 r_parents <- svydesign(
     id = ~ raehsamp,
@@ -600,7 +584,7 @@ The HRS sample focuses on cohorts born between 1920 and 1960, but contains some 
 
 Genotyping took place in 2006, 2008 and subsequent years. PGS were taken from those pre-calculated by the HRS [@hrspgs2020] and those produced by the Social Science Genetic Association Consortium, as part of their Polygenic Index Repository [@becker2021resource]. Scores created by the HRS were provided for black and white participants, but Polygenic Index Repository scores were only created for white participants.
 
-Multiple steps were taken to prune the polygenic scores. For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from European ancestry GWAS and GWAS with samples of different ancestry. We choose to use polygenic scores trained only on individuals of European ancestry. we discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants and `r length(pgs_black)` for the black participants. PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, we control for ten within-ethnicity principal components of the DNA array data.
+For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from European ancestry GWAS and GWAS with samples of different ancestry. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants and `r length(pgs_black)` for the black participants. PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, we control for ten within-ethnicity principal components of the DNA array data.
 
 The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population. The mean number of children of people born in the same year was calculated using sampling weights.
 
@@ -1276,7 +1260,7 @@ stopifnot(cor_raw_controlled >= 0)
 @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in each pair of groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
 
 |               | Low group             | High group            | Difference            |
-|---------------|-----------------------|-----------------------|-----------------------|
+|-----------------|-------------------|-------------------|-------------------|
 | Education     | `r tbl$edu[1]`        | `r tbl$edu[2]`        | `r tbl$edu[3]`        |
 | Income        | `r tbl$income_med[1]` | `r tbl$income_med[2]` | `r tbl$income_med[3]` |
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
@@ -1364,12 +1348,15 @@ To estimate how natural selection will contribute to changing the phenotype, we 
 <!--# TE It's hard to keep in the sanity check since we are jumping from LDSC back to GCTA to calcualte snp heritability with pgenscores. The above also uses PGI repository scores only. I can add the sanity check back in. To be fair, I'm only aware of the method being tested with different discovery sample sizes using simulated data (link below) the sanity check is useul. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10368647/-->
 
 ```{r}
-#| label: TE-pgicorrect
+#| label: stat-pgicorrect
 #| cache: true
 
 # Writing data for pgi_correct to use
-write.table(subset(rand$variables, ethnicity == "white"),"pgi_correct_data.txt",
-            quote=FALSE, sep="\t")
+readr::write_tsv(
+  rand$variables |> filter(ethnicity == "white"),
+  "pgi_correct_data.txt",
+  quote = "none"
+)
 
 ####################################
 # Formatting parameter values to use
@@ -1377,108 +1364,117 @@ write.table(subset(rand$variables, ethnicity == "white"),"pgi_correct_data.txt",
 
 # correct_scores holds h2 and R2 values, as well as useful information about the PGS
 # such as group categories taken from the PGI repository and simplified names
-correct_scores        <- readxl::read_excel("PGI_Heritabilities.xlsx", na = "NA", 
-                                            range="B1:U53")
-                            
+correct_scores <- readxl::read_excel("PGI_Heritabilities.xlsx", 
+                                     na = "NA", range = "B1:U53")
 
 # Where h2 and R2 are missing, we take values from a similar sample - the WLS
-correct_scores$chip_h2 <- ifelse(is.na(correct_scores$HRS_h2), correct_scores$WLS_h2,
+correct_scores$chip_h2 <- ifelse(is.na(correct_scores$HRS_h2), 
+                                 correct_scores$WLS_h2,
                                  correct_scores$HRS_h2)
 
-correct_scores$R2      <- ifelse(is.na(correct_scores$HRS_R2), correct_scores$WLS_R2,
-                                 correct_scores$HRS_R2)
+correct_scores$R2 <- ifelse(is.na(correct_scores$HRS_R2),
+                            correct_scores$WLS_R2,
+                            correct_scores$HRS_R2)
 
 correct_scores$twin_h2 <- correct_scores$TwinH2
 correct_scores$pgs     <- correct_scores$Abr
 
-correct_scores[which(correct_scores[, "pgs"] == "CANNABIS"), "pgs"] <- "CANNABISpgirep"
-correct_scores[which(correct_scores[, "pgs"] == "DPW"), "pgs"]      <- "DPWpgirep"
-correct_scores[which(correct_scores[, "pgs"] == "HEIGHT"), "pgs"]   <- "HEIGHTpgirep"
+correct_scores$pgs <- case_match(correct_scores$pgs,
+  "CANNABIS" ~ "CANNABISpgirep",
+  "DPW"      ~ "DPWpgirep",
+  "HEIGHT"   ~ "HEIGHTpgirep",
+  .default = correct_scores$pgs
+)
 
 # some of the PGS have estimates rounded to zero and are thus useless
-correct_scores <- subset(correct_scores, chip_h2 > 0)
-correct_scores <- subset(correct_scores, R2 > 0)
-
+correct_scores <- filter(correct_scores, chip_h2 > 0, R2 > 0)
 
 # TE I originally used 0.28 from the TED sample. But that leads to especially absurd estimates
-# 0.15 was estiamted in the American MIDUS sample from the same paper. 
-# Leading to slightly less absurd estimates. Perhaps more appropriate in the American context. 
+# 0.15 was estiamted in the American MIDUS sample from the same paper.
+# Leading to slightly less absurd estimates. Perhaps more appropriate in the American context.
 # Uncertainty regarding parameters means results should be interepreted with CAUTION!!!
 # adjustment to use Midus values for NEB is also used
 
-correct_scores[which(correct_scores$pgs == "AFB"), "twin_h2"]      <- 0.15
-correct_scores[which(correct_scores$pgs == "NEBwomen"), "twin_h2"] <- 0.28
+correct_scores$twin_h2[correct_scores$pgs == "AFB"] <- 0.15
+correct_scores$twin_h2[correct_scores$pgs == "NEBwomen"] <- 0.28
 
 
 ####################################
 # Calculating error corrected estimates
 ####################################
 
-# Loop for for calculating results with SNP heritabilities
-map_df(1:nrow(correct_scores), function(i) {
-
+run_pgic_once <- function (pgs, r2, h2, h2_type) {
+  pgic_command <- glue(
+     'python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt', 
+     '--outcome "rlrs" --pgi-var {pgs}',
+     '--covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A"',
+     '"PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2 {r2} --h2 {h2}',
+     '--weights "weight"', 
+     .sep = " ")
+  system(pgic_command)
+      
+  # This removes "junk" rows in the way of our regression betas
+  system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
+  pgic_results <- readr::read_table("reg_results", col_names = TRUE,
+                                    col_types = "cdddd")
+  file.remove("reg_results")
   
-system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var', correct_scores[i,"pgs"], ' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2', correct_scores[i,"R2"], ' --h2 ', correct_scores[i,"chip_h2"], ' --weights "weight"', sep=" "))
-
-# This removes "junk" rows in the way of our regression betas
-system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
-reg_snp <- read.table("reg_results", header=TRUE)
-
-tibble(
-  trait = as.character(correct_scores[i,"pgs"]), 
-  beta  = as.numeric(reg_snp[1,4]),
-  SE    = as.numeric(reg_snp[1,5]),
-  Heritability = "Chip"
-)
+  tibble(
+    trait = pgs,
+    beta  = pgic_results[[1, 4]],
+    SE    = pgic_results[[1, 5]],
+    Heritability = h2_type
+  )
 }
-) ->
-  corrected_effects_snp
 
-
-
-# Loop for for calculating results with twin heritabilities
-map_df(1:nrow(correct_scores), function(i) {
-
-
-system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var', correct_scores[i,"pgs"], ' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2', correct_scores[i,"R2"], ' --h2 ', correct_scores[i,"twin_h2"], ' --weights "weight"', sep=" "))
-
-system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
-reg_twin <- read.table("reg_results",header=TRUE)
-
-
-tibble(
-  trait = as.character(correct_scores[i,"pgs"]), 
-  beta  = as.numeric(reg_twin[1,4]),
-  SE    = as.numeric(reg_twin[1,5]),
-  Heritability = "Twin"
-)
+run_pgic_data <- function (score_data, h2_column, h2_type) {
+  results <- map(1:nrow(score_data), 
+    \(i) run_pgic_once(pgs = score_data$pgs[i], 
+                       r2 = score_data$R2[i],
+                       h2 = score_data[i, h2_column, drop = TRUE],
+                       h2_type = h2_type)
+  )
+  
+  list_rbind(results)
 }
-) ->
-  corrected_effects_twin
 
-corrected_effects           <- rbind(corrected_effects_snp, corrected_effects_twin)
-corrected_effects$conf.low  <- corrected_effects$beta - 1.96*corrected_effects$SE
-corrected_effects$conf.high <- corrected_effects$beta + 1.96*corrected_effects$SE
+
+corrected_effects_snp <- run_pgic_data(correct_scores, h2_column = "chip_h2",
+                                       h2_type = "Chip")
+corrected_effects_twin <- run_pgic_data(correct_scores, h2_column = "twin_h2",
+                                        h2_type = "Twin")
+
+corrected_effects <- rbind(corrected_effects_snp, corrected_effects_twin)
+corrected_effects$conf.low <- corrected_effects$beta - 1.96 *
+                              corrected_effects$SE
+corrected_effects$conf.high <- corrected_effects$beta + 1.96 *
+                               corrected_effects$SE
 
 
 system("rm pgi_correct_data.txt")
 
+corrected_effects <- left_join(corrected_effects, correct_scores,
+                               by = join_by(trait == Abr),
+                               suffix = c("", ".y"))
+  
+# The odd looking results are for traits with large missing heritability e.g. Asthma. My guess is that the rare variants act somewhat differently as DHJ as argued, meaning traits with large missing heritability show nonsense twin heritability estimates.
 
+corrected_effects$Category <-
+  case_match(
+    corrected_effects$Category,
+    "Health and health behaviours"     ~ "Health",
+    "Personality and well-being"       ~ "Personality",
+    "Fertility and sexual development" ~ "Health",
+    "Anthropometric"                   ~ "Health",
+    "Cognition and education"          ~ "Cognition"
+  )
 
-
-corrected_effects <- merge(corrected_effects, correct_scores, 
-                           by.x="trait", by.y="Abr",prefix=c("",".y"))
-
-# The odd looking results are for traits with large missing heritability e.g. Asthma. My guess is that the rare variants act somewhat differently as DHJ as argued, meaning traits with large missing heritability show nonsense twin heritability estimates. 
-
-corrected_effects$Category <- case_match(corrected_effects$Category, 
-                                        "Health and health behaviours" ~ "Health",
-                                        "Personality and well-being" ~ "Personality",
-                                        "Fertility and sexual development" ~ "Health",
-                                        "Anthropometric" ~ "Health",
-                                        "Cognition and education" ~ "Cognition"
-                                       )
-
+# Cleaning and saving corrected effects so people can have the exact figures
+corrected_effects$TwinH2_Source <- corrected_effects$Source
+corrected_effects |> 
+  select(trait, beta, SE, Heritability, chip_h2, twin_h2, R2, 
+           TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
+  readr::write_csv("Corrected_effects.csv")
 
 ```
 
@@ -1493,11 +1489,6 @@ corrected_effects$Category <- case_match(corrected_effects$Category,
 #| fig-width:  5.98
 
 
-# This removes ADHD due to the low power of the score. Note ADHD predict RLRS after bonferroni! 
-# It also removes NEB
-corrected_effects <- subset(corrected_effects, R2 > 0.005)
-
-
 # TE Note that under Fisher's fundamental theorem of natural selection, the selection
 # for fitness should be equal to it's heritability... But in HRS the
 # the AFB PGS much more strongly predicts RLRS than the NEB PGS and it's selection
@@ -1507,15 +1498,15 @@ corrected_effects <- subset(corrected_effects, R2 > 0.005)
 # NEB_result <-  corrected_effects-which(corrected_effects[,"trait"]=="NEBwomen"),]
 
   
-my_labeller <- function(variable, value) {
-  return(value)
-  }
-  
 corrected_effects |>
+  # This removes ADHD due to the low power of the score. 
+  # Note ADHD predict RLRS after bonferroni! 
+  # It also removes NEB
+  filter(R2 > 0.005) |> 
   mutate(
     trait = nice_names[trait],
     trait = fct_reorder(trait, beta)
-  )|>
+  ) |>
   ggplot(aes(y = trait, x = beta, xmin = conf.low, xmax = conf.high,
            color = Heritability)) +
   geom_vline(xintercept = 0, color = "grey60") +
@@ -1525,18 +1516,8 @@ corrected_effects |>
   coord_cartesian(xlim = c(-0.3, 0.3)) +
   labs(x = "Corrected coefficient on RLRS", y = "") +
   theme_minimal() +
-  facet_grid(Category ~ ., scales = "free_y", space = "free_y", labeller = my_labeller)+
+  facet_grid(Category ~ ., scales = "free_y", space = "free_y") +
   theme(strip.text.y = element_text(angle = -90,face = "bold"))
-  
-# Cleaning and saving corrected effects so people can have the exact figures
-  corrected_effects$TwinH2_Source <- corrected_effects$Source
-  
-  corrected_effects <- corrected_effects[, c("trait", "beta", "SE", "Heritability",
-                                            "chip_h2", "twin_h2", "R2", 
-                                            "TwinH2_Source", "PoldermanICF_ICD10_subchapter",
-                                            "Category")]
-  
- write.csv(corrected_effects,"Corrected_effects.csv")
   
 ```
 
