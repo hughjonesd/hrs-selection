@@ -64,113 +64,112 @@ knitr::knit_hooks$set("inline",
     x
   }
 )
-
 nice_names <- c(
-  SCZ         = "Schizophrenia",
-  WC          = "Waist circ.",
-  WHR         = "Waist-hip ratio",
-  NEUROT      = "Neuroticism",
-  WELLB       = "Well-being",
-  DEPSYMP     = "Depr. symptoms",
-  CD          = "Cor. art. disease",
-  MI          = "Myoc. infarction",
-  CORT        = "Cortisol",
-  T2D         = "Type 2 diabetes",
-  BIP         = "Bipolar",
-  ADHD_PGC17  = "ADHD",
-  XDISORDER   = "Cross-disorder",
-  MENA        = "Age at menarche",
-  MENO        = "Age at menopause",
-  EXTRAVER    = "Extraversion",
-  AUTISM      = "Autism",
-  AB          = "Antisoc. behav.",
-  OCD         = "OCD",
-  AFBC        = "Age 1st birth combn",
-  AFBF        = "Age 1st birth F",
-  AFBM        = "Age 1st birth M",
-  MDD2        = "Maj. depr. disorder",
-  PTSDAA      = "PTSD Afr",
-  PTSDEA      = "PTSD Eur",
-  PTSDC       = "PTSD combined",
-  HDL         = "HDL cholesterol",
-  LDL         = "LDL cholesterol",
-  TC          = "Total cholesterol",
-  ANXFS       = "Anxiety factor", 
-  ANXCC       = "Anxiety case-control",
-  BUN         = "Blood urea nitro.",
-  BUNTE       = "Blood urea nitro. TE",
-  CKD         = "Kidney disease",
-  CKDTE       = "Kidney disease TE",
-  DBP         = "Diastolic blood pr.",
-  BMI2        = "BMI",
-  HEIGHT2     = "Height",
-  AI          = "Age smoking init.",
+  SCZ = "Schizophrenia",
+  WC = "Waist circ.",
+  WHR = "Waist-hip ratio",
+  NEUROT = "Neuroticism",
+  WELLB = "Well-being",
+  DEPSYMP = "Depr. symptoms",
+  CD = "Cor. art. disease",
+  MI = "Myoc. infarction",
+  CORT = "Cortisol",
+  T2D = "Type 2 diabetes",
+  BIP = "Bipolar",
+  ADHD_PGC17 = "ADHD",
+  XDISORDER = "Cross-disorder",
+  MENA = "Age at menarche",
+  MENO = "Age at menopause",
+  EXTRAVER = "Extraversion",
+  AUTISM = "Autism",
+  AB = "Antisoc. behav.",
+  OCD = "OCD",
+  AFBC = "Age 1st birth combn",
+  AFBF = "Age 1st birth F",
+  AFBM = "Age 1st birth M",
+  MDD2 = "Maj. depr. disorder",
+  PTSDAA = "PTSD Afr",
+  PTSDEA = "PTSD Eur",
+  PTSDC = "PTSD combined",
+  HDL = "HDL cholesterol",
+  LDL = "LDL cholesterol",
+  TC = "Total cholesterol",
+  ANXFS = "Anxiety factor",
+  ANXCC = "Anxiety case-control",
+  BUN = "Blood urea nitro.",
+  BUNTE = "Blood urea nitro. TE",
+  CKD = "Kidney disease",
+  CKDTE = "Kidney disease TE",
+  DBP = "Diastolic blood pr.",
+  BMI2 = "BMI",
+  HEIGHT2 = "Height",
+  AI = "Age smoking init.",
   CPD_GSCAN19 = "Cigs per day",
-  DPW         = "Drinks per week",
-  SC          = "Smoking cessation",
-  SI          = "Smoking initiation",
-  HTN         = "Hypertension",
-  CANNABIS    = "Cannabis",
-  GWAD2NA     = "Alzheimer's no APOE",
+  DPW = "Drinks per week",
+  SC = "Smoking cessation",
+  SI = "Smoking initiation",
+  HTN = "Hypertension",
+  CANNABIS = "Cannabis",
+  GWAD2NA = "Alzheimer's no APOE",
   ALZ_01AD2NA = "Alzheimer's p 0.01 no APOE",
-  GWAD2WA     = "Alzheimer's",
+  GWAD2WA = "Alzheimer's",
   ALZ_01AD2WA = "Alzheimer's p 0.01",
-  ALC         = "Alcohol dependence",
-  PP          = "Pulse pressure",
-  SBP         = "Systolic blood pr.",
-  EGFR        = "Glom. filtr.",
-  EGFRTE      = "Glom. filtr. TE",
-  EA3         = "Educ. attainment",
-  HBA1CAA     = "HbA1c Afr",
-  HBA1CEA     = "HbA1c Eur",
-  GCOG2       = "Gen. cognition",
-  ACTIVITY="Physical Activity", #pgirep here
-  ADHD="ADHD",
-  ADVENTURE="Adventurous",
-  AFB="Age First Birth",
-  ALLERGYCAT="Cat Allergy",
-  ALLERGYDUST="Dust Allergy",
-  ALLERGYPOLLEN="Pollen Allergy",
-  ASTECZRHI="Asthma/Eczema/Rhinitis",
-  ASTHMA="Asthma",
-  AUDIT="Alcohol Misuse",
-  BMI="Body Mass Index",
-  CANNABISpgirep="Cannabis Use",
-  COGEMP="Cognitive Empathy",
-  COPD="Chronic Obstructive Pulmonary Disease",
-  CPD="Cigarettes per Day",
-  CP="Cognitive Performance",
-  DELAYDISC="Delay Discounting",
-  DEP="Depressive Symptoms",
-  DPWpgirep="Drinks per Week",
-  EA="Educational Attainment",
-  EVERSMOKE="Ever Smoker",
-  EXTRA="Exraversion",
-  FAMSAT="Satisfaction with Family",
-  FINSAT="Satisfaction with Finances",
-  FRIENDSAT="Satisfaction with Friends",
-  HAYFEVER="Hayfever",
-  HEIGHTpgirep="Height",
-  HIGHMATH="Highest Math",
-  LEFTOUT="Left Out of Social Activity",
-  LONELY="Loneliness",
-  MENARCHE="Age First Menses",
-  MIGRAINE="Migraine",
-  MORNING="Morning Person",
-  NARCIS="Narcissism",
-  NEARSIGHTED="Nearsightedness",
-  NEBmen="Number of Children (men)",
-  NEBwomen="Number of Children (women)",
-  NEURO="Neuroticism",
-  OPEN="Openness",
-  READING="Age Started Reading",
-  RELIGATT="Religious Attendance",
-  RISK="Risk Tolerance",
-  SELFHEALTH="Self-Rated Health",
-  SELFMATH="Self-Rated Math Ability",
-  SWB="Subjective Well-Being",
-  VOICEDEEP="Age Voice Deepened",
-  WORKSAT="Satisfaction with Work"
+  ALC = "Alcohol dependence",
+  PP = "Pulse pressure",
+  SBP = "Systolic blood pr.",
+  EGFR = "Glom. filtr.",
+  EGFRTE = "Glom. filtr. TE",
+  EA3 = "Educ. attainment",
+  HBA1CAA = "HbA1c Afr",
+  HBA1CEA = "HbA1c Eur",
+  GCOG2 = "Gen. cognition",
+  ACTIVITY = "Physical Activity", # pgirep here
+  ADHD = "ADHD",
+  ADVENTURE = "Adventurous",
+  AFB = "Age First Birth",
+  ALLERGYCAT = "Cat Allergy",
+  ALLERGYDUST = "Dust Allergy",
+  ALLERGYPOLLEN = "Pollen Allergy",
+  ASTECZRHI = "Asthma/Eczema/Rhinitis",
+  ASTHMA = "Asthma",
+  AUDIT = "Alcohol Misuse",
+  BMI = "Body Mass Index",
+  CANNABISpgirep = "Cannabis Use",
+  COGEMP = "Cognitive Empathy",
+  COPD = "Chronic Obstructive Pulmonary Disease",
+  CPD = "Cigarettes per Day",
+  CP = "Cognitive Performance",
+  DELAYDISC = "Delay Discounting",
+  DEP = "Depressive Symptoms",
+  DPWpgirep = "Drinks per Week",
+  EA = "Educational Attainment",
+  EVERSMOKE = "Ever Smoker",
+  EXTRA = "Exraversion",
+  FAMSAT = "Satisfaction with Family",
+  FINSAT = "Satisfaction with Finances",
+  FRIENDSAT = "Satisfaction with Friends",
+  HAYFEVER = "Hayfever",
+  HEIGHTpgirep = "Height",
+  HIGHMATH = "Highest Math",
+  LEFTOUT = "Left Out of Social Activity",
+  LONELY = "Loneliness",
+  MENARCHE = "Age First Menses",
+  MIGRAINE = "Migraine",
+  MORNING = "Morning Person",
+  NARCIS = "Narcissism",
+  NEARSIGHTED = "Nearsightedness",
+  NEBmen = "Number of Children (men)",
+  NEBwomen = "Number of Children (women)",
+  NEURO = "Neuroticism",
+  OPEN = "Openness",
+  READING = "Age Started Reading",
+  RELIGATT = "Religious Attendance",
+  RISK = "Risk Tolerance",
+  SELFHEALTH = "Self-Rated Health",
+  SELFMATH = "Self-Rated Math Ability",
+  SWB = "Subjective Well-Being",
+  VOICEDEEP = "Age Voice Deepened",
+  WORKSAT = "Satisfaction with Work"
 )
 
 eths <- c("white", "black")
@@ -379,8 +378,8 @@ dupe_PGS <- c("EA3", # TE when I've tested it the pgirep one is slightly better.
               "PTSDC", # Combined Euro + African.
               #"ANXFS"  ,"ANXCC", continuous vs case-control anxiety 
               # r = 0.6 let's keep them
-              # we suppose it's equivalent to having CP and EA
-              "BUNTE", #trans ethnic BUNTE is kept 
+              # I suppose it's equivalent to having CP and EA
+              "BUNTE",  
               "CKDTE", 
               "BMI2",
               "HEIGHT2",
@@ -393,32 +392,27 @@ dupe_PGS <- c("EA3", # TE when I've tested it the pgirep one is slightly better.
               "GWAD2WA", # Three alzheimers deleted. Ones using p value 1 threshold
               # and alzheimers that remove APOE variant region
               "ALC", #AUDIT is alcohol misuse in pgirep
- 	           "EGFR",
-	          "HBA1CEA" #African ancestry vs European ancestry. No TE
+ 	            "EGFR",
+	            "HBA1CEA" 
               )
 
 
-dupe_PGS_black <- c(
-              "PTSDAA", # African    
-              "PTSDC", # Combined Euro + African.
-              #"ANXFS"  ,"ANXCC", continuous vs case-control anxiety 
-              # r = 0.6 let's keep them
-              # we suppose it's equivalent to having CP and EA
-              "BUNTE", #trans ethnic BUNTE is kept 
+dupe_PGS_black <- c("PTSDAA",   
+              "PTSDC", 
+              "BUNTE", 
               "CKDTE", 
               "BMI2",
               "CANNABIS", 
               "GWAD2NA", 
               "ALZ_01AD2NA",
-              "GWAD2WA", # Three alzheimers deleted. Ones using p value 1 threshold
-              # and alzheimers that remove APOE variant region
- 	           "EGFR",
-	          "HBA1CEA" #African ancestry vs European ancestry. No TE
+              "GWAD2WA", 
+ 	            "EGFR",
+	            "HBA1CEA" 
               )
               
-pgen4e_new_names <- select(pgen4e_new_names,-hhid,-pn,-any_of(dupe_PGS),-any_of(old_pgs))
+pgen4e_new_names <- select(pgen4e_new_names, -hhid, -pn, -any_of(dupe_PGS), -any_of(old_pgs))
 pgs_white <- names(pgen4e_new_names)
-pgs_white[which(pgs_white=="HEIGHT")] <- "HEIGHTpgirep"
+pgs_white[which(pgs_white == "HEIGHT")] <- "HEIGHTpgirep"
 
 
 
@@ -468,9 +462,8 @@ rand <- rand |> left_join(rand_2010,
 
 # TE this is average number of kids that your kids have
 rand$div_h10gkid <- rand$h10gkid/rand$raevbrn
-
 # TE 283 people report having grandkids, but having had no children. Weird!
-gkids_unusable_white <- sum(na.omit(ifelse(subset(rand, ethnicity == "white")$h10gkid > 0 & subset(rand, ethnicity == "white")$raevbrn==0,1,0)))
+gkids_unusable_white <- sum(na.omit(ifelse(subset(rand, ethnicity == "white")$h10gkid > 0 & subset(rand, ethnicity == "white")$raevbrn == 0, 1, 0)))
 
 gkids_unusable_black <- sum(na.omit(ifelse(subset(rand, ethnicity == "black")$h10gkid > 0 & subset(rand, ethnicity == "black")$raevbrn==0,1,0)))
 
@@ -522,7 +515,7 @@ rand <- rand |>
   mutate(.by = c(ethnicity, ragender),
     agefb = chop_equally(agefbn, 2, labels = c("Low", "High"))
   )
-# TE I've plotted the mean values by year. They look reasonably stable. Beauchamp 2016 took a three year average. we don't think this is necessary
+# TE I've plotted the mean values by year. They look reasonably stable. Beauchamp 2016 took a three year average. I don't think this is necessary
 
 rand$neurot <- rand |> 
   select(matches("r\\d+lbneur")) |> 
@@ -534,41 +527,6 @@ pgs_black <- str_replace(pgs_black, "^01", "ALZ_01")
 names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 pgs <- unique(c(pgs_white,pgs_black))
 
-
-# Child dataset testing
-# TE sample size not too small... But mum and dad often report different values of grandkids
-# and big questions of sampling bias. Given the weakness of the data I don't think the approach can be justified
-
-
-#rand_male <- subset(rand,ragender == 1)
-#rand_female <- subset(rand,ragender == 2)
-
-#rand_mid <- merge(rand_male,rand_female, by = "hhid",suffixes=c(".m",".f"),all.x=FALSE,all.y=FALSE)
-#rand_mid <- subset(rand_mid,ethnicity.m=="white"))
-# 3588
-  
-
-#rand_mid$EA <- rand_mid$EA.m + rand_mid$EA.f
-#install.packages("fixest")
-#library(fixest)
-
-#cor(rand_mid$EA3.f,rand_mid$EA3.m)
-#reg <- lm(scale(EA3.f) ~ scale(EA3.m), data=rand_mid)
-#reg <- feols(scale(EA3.f) ~ scale(EA3.m), data=rand_mid)
-#reg <- feols(rlrs.m ~ EA3.m, data=rand_mid)
-#rand_mid$gkid <- rand_mid$h10gkid.m/rand_mid$raevbrn.m
-#rand_mid$gkidf <- rand_mid$h10gkid.f/rand_mid$raevbrn.f
-
-#reg <- feols(gkid ~ EA, data=rand_mid, ~ child_weight.m)
-
-#reg <- feols(gkidf ~ EA, data=rand_mid, ~ child_weight.f)
-
-
-#reg <- feols(h10gkid.m ~ EA, data=rand_mid, ~ child_weight.m)
-#reg <- feols(h10gkid.f ~ EA, data=rand_mid, ~ child_weight.f)
-
-                  
-          
 ```
 
 ```{r}
@@ -584,11 +542,11 @@ rand <- rand |>
   select(ethnicity, all_of(pgs), all_of(old_pgs), 
          all_of(pcs), weight, raevbrn, rlrs,
          raedyrs, r10sibs, edu, income_resid, income_med, married, 
-         agefb, agefbn,
-         rabyear, born, raehsamp, raestrat, parent_weight, ragender,
-         adhd_score, neurot, r10diabe, r10hearte, r10cesd, age_smoked,
-         anxiety, r10cogtot, rlrs_div_h10gkid, child_weight)
-# added my grandkid rlrs
+         agefb, agefbn, rabyear, born, raehsamp, raestrat, 
+         parent_weight, ragender, adhd_score, neurot, r10diabe, 
+         r10hearte, r10cesd, age_smoked, anxiety, r10cogtot, 
+         rlrs_div_h10gkid, child_weight)
+
 
 
 
@@ -819,9 +777,9 @@ tidy_pgs_eth <- list_rbind(tidy_pgs)
 n_tests <- nrow(tidy_pgs_eth)
 n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 
-# TE we don't think it makes sense to include black estimates in the calculation. Since we know PGS in blacks are extremely weak
-# and the tests overlap near 1:1 with the polygenic scores in whites
-# Could just report the results for whites? 
+# TE bonferroni correction might make more sense focusing on white tests
+# Either way seems to produce the same result
+
 n_tests_white <- nrow(tidy_pgs$white)
 n_sig_bonf_white <- sum(tidy_pgs$white$p.value < 0.05/n_tests)
 
@@ -990,7 +948,7 @@ if (insignificant(ci_boot_gkids$white)) warning("ci_boot_gkids$white insignifica
 if (significant(ci_boot_gkids$black)) warning("ci_boot_gkids$black significant")
 ```
 
-@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [\@canty1999resampling] are used so as to make inferences from the sample of respondents.
+@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps \[\@canty1999resampling\] are used so as to make inferences from the sample of respondents.
 
 ```{r}
 #| label: fig-rlrs-edu
@@ -1039,7 +997,7 @@ tmp <-
   filter(term != "GWAD2NA", term != "GWAD2WA")
 
 cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
-#if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
+# if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 # TE correlation without outliers is not NEG
 ```
 
@@ -1407,21 +1365,23 @@ To estimate how natural selection will contribute to changing the phenotype, we 
 write.table(subset(rand$variables, ethnicity == "white"),"pgi_correct_data.txt",
             quote=FALSE, sep="\t")
 
-correct_scores <- readxl::read_excel("PGI_Heritabilities.xlsx",na = "NA", range="B1:U53")
+correct_scores        <- readxl::read_excel("PGI_Heritabilities.xlsx", na = "NA", 
+                                            range="B1:U53")
                             
+
 # Where h2 and R2 are missing, we take values from a similar sample - the WLS
-correct_scores$chip_h2 <- ifelse(is.na(correct_scores$HRS_h2) , correct_scores$WLS_h2,
+correct_scores$chip_h2 <- ifelse(is.na(correct_scores$HRS_h2), correct_scores$WLS_h2,
                                  correct_scores$HRS_h2)
 
-correct_scores$R2 <- ifelse(is.na(correct_scores$HRS_R2) , correct_scores$WLS_R2,
+correct_scores$R2      <- ifelse(is.na(correct_scores$HRS_R2), correct_scores$WLS_R2,
                                  correct_scores$HRS_R2)
 
 correct_scores$twin_h2 <- correct_scores$TwinH2
-correct_scores$pgs <- correct_scores$Abr
+correct_scores$pgs     <- correct_scores$Abr
 
-correct_scores[which(correct_scores[,"pgs"]=="CANNABIS"),"pgs"] <- "CANNABISpgirep"
-correct_scores[which(correct_scores[,"pgs"]=="DPW"),"pgs"] <- "DPWpgirep"
-correct_scores[which(correct_scores[,"pgs"]=="HEIGHT"),"pgs"] <- "HEIGHTpgirep"
+correct_scores[which(correct_scores[, "pgs"] == "CANNABIS"), "pgs"] <- "CANNABISpgirep"
+correct_scores[which(correct_scores[, "pgs"] == "DPW"), "pgs"]      <- "DPWpgirep"
+correct_scores[which(correct_scores[, "pgs"] == "HEIGHT"), "pgs"]   <- "HEIGHTpgirep"
 
 # some of the PGS have estimates rounded to zero and are thus useless
 correct_scores <- subset(correct_scores, chip_h2 > 0)
@@ -1429,25 +1389,27 @@ correct_scores <- subset(correct_scores, R2 > 0)
 
 
 # TE I originally used 0.28 from the TED sample. But that leads to especially absurd estimates
-# 0.15 was estiamted in the American MIDUS sample from the same paper. Leading to slightly less absurd estimates. Perhaps more appropriate in the American context. Uncertainty regarding parameters means results should be interepreted with CAUTION!!!
-correct_scores[which(correct_scores$pgs=="AFB"),"twin_h2"] <- 0.15
-#adjustment to use Midus values for NEB is also used
-correct_scores[which(correct_scores$pgs=="NEBwomen"),"twin_h2"] <- 0.28
+# 0.15 was estiamted in the American MIDUS sample from the same paper. 
+# Leading to slightly less absurd estimates. Perhaps more appropriate in the American context. 
+# Uncertainty regarding parameters means results should be interepreted with CAUTION!!!
+# adjustment to use Midus values for NEB is also used
 
-# PGI correct is quite fast, but can be made faster if the dataset is made smaller
-#loop for chip results
+correct_scores[which(correct_scores$pgs == "AFB"), "twin_h2"]      <- 0.15
+correct_scores[which(correct_scores$pgs == "NEBwomen"), "twin_h2"] <- 0.28
+
+
 map_df(1:nrow(correct_scores), function(i) {
 
   
-system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var',correct_scores[i,"pgs"],' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2',correct_scores[i,"R2"],' --h2 ',correct_scores[i,"chip_h2"],' --weights "weight"',sep=" "))
+system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var', correct_scores[i,"pgs"], ' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2', correct_scores[i,"R2"], ' --h2 ', correct_scores[i,"chip_h2"], ' --weights "weight"', sep=" "))
 
 system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
-reg_snp <- read.table("reg_results",header=TRUE)
+reg_snp <- read.table("reg_results", header=TRUE)
 
 tibble(
-  trait = as.character(correct_scores[i,"pgs"]), #Ugly way of removing the column name...
-  beta = as.numeric(reg_snp[1,4]),
-  SE = as.numeric(reg_snp[1,5]),
+  trait = as.character(correct_scores[i,"pgs"]), 
+  beta  = as.numeric(reg_snp[1,4]),
+  SE    = as.numeric(reg_snp[1,5]),
   Heritability = "Chip"
 )
 }
@@ -1460,7 +1422,7 @@ tibble(
 map_df(1:nrow(correct_scores), function(i) {
 
 
-system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var',correct_scores[i,"pgs"],' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2',correct_scores[i,"R2"],' --h2 ',correct_scores[i,"twin_h2"],' --weights "weight"',sep=" "))
+system(paste('python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt --outcome "rlrs" --pgi-var', correct_scores[i,"pgs"], ' --covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A" "PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2', correct_scores[i,"R2"], ' --h2 ', correct_scores[i,"twin_h2"], ' --weights "weight"', sep=" "))
 
 system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
 reg_twin <- read.table("reg_results",header=TRUE)
@@ -1468,34 +1430,36 @@ reg_twin <- read.table("reg_results",header=TRUE)
 
 tibble(
   trait = as.character(correct_scores[i,"pgs"]), 
-  beta = as.numeric(reg_twin[1,4]),
-  SE = as.numeric(reg_twin[1,5]),
+  beta  = as.numeric(reg_twin[1,4]),
+  SE    = as.numeric(reg_twin[1,5]),
   Heritability = "Twin"
 )
 }
 ) ->
   corrected_effects_twin
 
-corrected_effects <- rbind(corrected_effects_snp, corrected_effects_twin)
-corrected_effects$conf.low <- corrected_effects$beta - 1.96*corrected_effects$SE
+corrected_effects           <- rbind(corrected_effects_snp, corrected_effects_twin)
+corrected_effects$conf.low  <- corrected_effects$beta - 1.96*corrected_effects$SE
 corrected_effects$conf.high <- corrected_effects$beta + 1.96*corrected_effects$SE
 
-# Deleting data created for PGI correct
+
 system("rm pgi_correct_data.txt")
 
 
 
 
-corrected_effects <- merge(corrected_effects, correct_scores, by.x="trait", by.y="Abr",prefix=c("",".y"))
+corrected_effects <- merge(corrected_effects, correct_scores, 
+                           by.x="trait", by.y="Abr",prefix=c("",".y"))
 
 # The odd looking results are for traits with large missing heritability e.g. Asthma. My guess is that the rare variants act somewhat differently as DHJ as argued, meaning traits with large missing heritability show nonsense twin heritability estimates. 
 
 corrected_effects$Category <- case_match(corrected_effects$Category, 
-         "Health and health behaviours" ~ "Health",
-         "Personality and well-being" ~ "Personality",
-         "Fertility and sexual development" ~ "Health",
-         "Anthropometric" ~ "Health",
-         "Cognition and education" ~ "Cognition")
+                                        "Health and health behaviours" ~ "Health",
+                                        "Personality and well-being" ~ "Personality",
+                                        "Fertility and sexual development" ~ "Health",
+                                        "Anthropometric" ~ "Health",
+                                        "Cognition and education" ~ "Cognition"
+                                       )
 
 
 ```
@@ -1529,11 +1493,11 @@ corrected_effects <- subset(corrected_effects, R2 > 0.005)
 #NEB_result <-  corrected_effects-which(corrected_effects[,"trait"]=="NEBwomen"),]
 
   
-  my_labeller <- function(variable, value) {
+my_labeller <- function(variable, value) {
   return(value)
   }
   
-  corrected_effects |>
+corrected_effects |>
   mutate(
     trait = nice_names[trait],
     trait = fct_reorder(trait, beta)
@@ -1550,9 +1514,13 @@ corrected_effects <- subset(corrected_effects, R2 > 0.005)
   facet_grid(Category ~ ., scales = "free_y", space = "free_y", labeller = my_labeller)+
   theme(strip.text.y = element_text(angle = -90,face = "bold"))
   
+
   corrected_effects$TwinH2_Source <- corrected_effects$Source
-  corrected_effects <- corrected_effects[,c("trait","beta","SE","Heritability","chip_h2",
-                                            "twin_h2","R2","TwinH2_Source","PoldermanICF_ICD10_subchapter","Category")]
+  
+  corrected_effects <- corrected_effects[, c("trait", "beta", "SE", "Heritability",
+                                            "chip_h2", "twin_h2", "R2", 
+                                            "TwinH2_Source", "PoldermanICF_ICD10_subchapter",
+                                            "Category")]
   
  write.csv(corrected_effects,"Corrected_effects.csv")
   
