@@ -569,12 +569,12 @@ n_black <- nrow(rand |> subset(ethnicity == "black"))
 
 ```
 
-@hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from \@becker1976child. The theory has two components.
+@hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components.
 
 1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
 2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
 
-Here, we make an independent test of the theory in the US population, using the Health and Retirement Survey \[\@hrsrandfam2023; \@hrsrand2023\]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The HRS also provides precalculated polygenic scores \[\@hrspgs2020\] for both black and (non-hispanic) white participants, so we can check whether the theory predicts patterns of natural selection in both these ethnicities.
+Here, we make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The HRS also provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so we can check whether the theory predicts patterns of natural selection in both these ethnicities.
 
 # Data
 
@@ -588,7 +588,7 @@ For the white participants, when scores from the two samples measured the same t
 
 The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population. The mean number of children of people born in the same year was calculated using sampling weights.
 
-The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R "survey" package \[\@lumleysurvey2023\].
+The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R "survey" package [@lumleysurvey2023].
 
 # Results
 
@@ -816,7 +816,7 @@ ci_eths <- confint(cor_eths_boot)[1,]
 
 <!--# TE edited because 3 scores are bonferroni significant in whites. As of writing the same same three scores were signficiant regardlesss of whether we pool the blacks and whites in the bonferroni calculation.-->
 
-We estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix \@fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes. `r n_sig_bonf` scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests`. The scores are age at first birth, educational attainment and attention deficit disorder. But we are most concerned with looking at patterns across scores rather than judging the significance of individual scores.
+We estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes. `r n_sig_bonf` scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests`. The scores are age at first birth, educational attainment and attention deficit disorder. But we are most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
 #| label: stat-bootstraps
@@ -938,7 +938,7 @@ if (insignificant(ci_boot_gkids$white)) warning("ci_boot_gkids$white insignifica
 if (significant(ci_boot_gkids$black)) warning("ci_boot_gkids$black significant")
 ```
 
-@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps \[\@canty1999resampling\] are used so as to make inferences from the sample of respondents.
+@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [@canty1999resampling] are used so as to make inferences from the sample of respondents.
 
 ```{r}
 #| label: fig-rlrs-edu
@@ -1260,7 +1260,7 @@ stopifnot(cor_raw_controlled >= 0)
 @tbl-x-bootstraps shows means and 95% confidence intervals for mean absolute coefficient sizes in each pair of groups, and the difference between them, using bootstraps. Differences for income and marriage are significant.
 
 |               | Low group             | High group            | Difference            |
-|-----------------|-------------------|-------------------|-------------------|
+|------------------|------------------|------------------|------------------|
 | Education     | `r tbl$edu[1]`        | `r tbl$edu[2]`        | `r tbl$edu[3]`        |
 | Income        | `r tbl$income_med[1]` | `r tbl$income_med[2]` | `r tbl$income_med[3]` |
 | Marriage      | `r tbl$married[1]`    | `r tbl$married[2]`    | `r tbl$married[3]`    |
@@ -1331,7 +1331,7 @@ $$
 \hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}
 }$$
 
-where \$h\^2\$ is the heritability of the PGS target phenotype and \$R\^2\_{PGS}\$ is the \$R\^2\$ of the measured PGS on the target phenotype \[\@becker2021resource\]. Moving from error correction in a univariate model to a multivariate model requires a slightly more complex correction, although it uses the same parameters. To do this we use the error-corrected estimator developed by \@becker2021resource.
+where \$h\^2\$ is the heritability of the PGS target phenotype and \$R\^2\_{PGS}\$ is the \$R\^2\$ of the measured PGS on the target phenotype [@becker2021resource]. Moving from error correction in a univariate model to a multivariate model requires a slightly more complex correction, although it uses the same parameters. To do this we use the error-corrected estimator developed by \@becker2021resource.
 
 SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^2]. We remove polygenic scores with $R^2_{PGS} > 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction.
 
@@ -1450,8 +1450,7 @@ corrected_effects$conf.low <- corrected_effects$beta - 1.96 *
 corrected_effects$conf.high <- corrected_effects$beta + 1.96 *
                                corrected_effects$SE
 
-
-system("rm pgi_correct_data.txt")
+file.remove("pgi_correct_data.txt")
 
 corrected_effects <- left_join(corrected_effects, correct_scores,
                                by = join_by(trait == Abr),
