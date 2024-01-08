@@ -1,19 +1,22 @@
 ---
-title: "Natural selection in the Health and Retirement Study"
+title: "Natural Selection Across Three Generations of Americans"
 author: 
   - David Hugh-Jones
   - Tobias Edwards
 abstract: |
   We investigate natural selection on polygenic scores
   in the contemporary US, using the Health and Retirement Study. Results
-  partially support the economic theory of fertility as an explanation for
+  partially support the economic theory of fertility as an explanation for 
+  natural selection: among both black and white respondents,
   scores which correlate negatively (positively) with education are
   selected for (against). Selection coefficients are larger among low-income
   and unmarried parents, but not among younger parents or those with less 
-  education. We also estimate effect sizes corrected for noise in the 
-  polygenic scores. 
-  natural selection: among both white and black respondents,
-date: "November 2023"
+  education. Using respondents' number of siblings and grandchildren we 
+  were able to examine selection across three generations, finding the 
+  results consistent over time. We also estimate effect sizes 
+  corrected for noise in the polygenic scores, finding selection
+  for some health traits to be similar in magnitude to cognitive traits. 
+date: "January 2024"
 format: 
   pdf:
     keep-tex: true
@@ -36,9 +39,10 @@ bibliography: bibliography-hrs.bib
 
 ```{r}
 #| label: setup
+#| cache-lazy: false
 
+# TE One time I tried to render the document with cache on I got the error message on the first chunk: "Error in `lazyLoadDBinsertVariable()`: ! long vectors not supported yet: connections.c:6028" Added cache-lazy: false which seems to fix things
 
-# TE quick TODOs change reference to time being insignificant. Fix the footnote citations
 options(digits = 3)
 set.seed(271075)
 
@@ -243,7 +247,7 @@ pgen4a <- haven::read_dta("data/PGENSCORE4r3/pgenscore4a_r.dta")
 # european ancestry
 pgen4e <- haven::read_dta("data/PGENSCORE4r3/pgenscore4e_r.dta")
 
-# TE edit PGI repository EUR only
+
 pgirep <- readr::read_tsv("data/pgi-repository/HRS_PGIrepo_v1.0.txt",
                           show_col_types = FALSE)
 names(pgirep)[1:2] <- c("hhid","pn")
@@ -268,10 +272,11 @@ trk_weights <- trk_orig |> select(HHID, PN, matches("BIOWGTR"))
 #   "data/randhrsfam1992_2018v2_STATA/randhrsfamr1992_2018v2.dta")
 # saveRDS(rand_fam, "data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
 rand_fam <- readRDS("data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
+
 # only selected columns to avoid creating suffixes when we join with
 # rand.
-# Age of oldest kid; grandchildren; num siblings who died
-rand_fam <- rand_fam |> select(hhid, pn, h10ageokid, h10gkid, r10sbdied)
+# Age of oldest kid 2016; age of oldest kid 2010; grandchildren; num siblings who died
+rand_fam <- rand_fam |> select(hhid, pn, h13ageokid, h10ageokid, h13gkid, r10sbdied)
 
 # 2010 (and others) record "age started smoking"
 # rand_2010 <- haven::read_dta("data/hd10f6a_STATA/hd10f6a.dta")
@@ -422,7 +427,7 @@ rand <- left_join(rand, pgirep, by = join_by(hhid, pn),suffix=c("","pgirep"))
 rand <- left_join(rand, trk_weights, by = join_by(hhid == HHID, pn == PN))
 rand$weight <- ifelse(is.na(rand$MBIOWGTR), rand$NBIOWGTR, rand$MBIOWGTR)
 
-# TE I'm replacing 0 weights with NA because it can create odd problems
+# Replacing 0 weights with NA because it can create odd problems
 rand$weight <- na_if(rand$weight, 0)
 
 # compensate for fecund parents more likely to have child in survey.
@@ -448,21 +453,21 @@ rand <- rand |> left_join(rand_2010,
                           relationship = "one-to-one")
 
 # TE this is average number of kids that your kids have
-rand$div_h10gkid <- rand$h10gkid / rand$raevbrn
+rand$div_h13gkid <- rand$h13gkid / rand$raevbrn
 
 
-# 83 people report having grandkids, but having had no children. Weird!
+# Some people report having grandkids, but having had no children. Weird!
 # This code subsets the data by ethnicity then counts all observations
 # where grandkids is greater than 0 but number of kids is 0
 gkids_unusable_white <- rand |> 
-  filter(ethnicity == "white", h10gkid > 0, raevbrn == 0) |> 
+  filter(ethnicity == "white", h13gkid > 0, raevbrn == 0) |> 
   nrow()
 gkids_unusable_black <- rand |> 
-  filter(ethnicity == "black", h10gkid > 0, raevbrn == 0) |> 
+  filter(ethnicity == "black", h13gkid > 0, raevbrn == 0) |> 
   nrow()
 
 # if grandkids but no kids div_gkid is infinite. Replacing with NA
-rand$div_h10gkid[is.infinite(rand$div_h10gkid)] <- NA
+rand$div_h13gkid[is.infinite(rand$div_h13gkid)] <- NA
 
 rand <- rand |>
   mutate(.by = rabyear, # calculate this pooling ethnicity
@@ -470,11 +475,11 @@ rand <- rand |>
     mean_child_weight = mean(child_weight, na.rm = TRUE),
     mean_raevbrn = mean(raevbrn*weight/mean_weight, na.rm = TRUE),
     rlrs = raevbrn/mean_raevbrn,
-    mean_h10gkid = mean(h10gkid*weight/mean_weight, na.rm = TRUE),
-    rlrs_h10gkid = h10gkid/mean_h10gkid,
-    mean_div_h10gkid = mean(div_h10gkid*child_weight/mean_child_weight, 
+    mean_h13gkid = mean(h13gkid*weight/mean_weight, na.rm = TRUE),
+    rlrs_h13gkid = h13gkid/mean_h13gkid,
+    mean_div_h13gkid = mean(div_h13gkid*child_weight/mean_child_weight, 
                             na.rm = TRUE), 
-    rlrs_div_h10gkid = div_h10gkid/mean_div_h10gkid
+    rlrs_div_h13gkid = div_h13gkid/mean_div_h13gkid
   ) |>
   mutate(.by = ethnicity, # calculate these stats within-ethnicity
     income_resid = calc_income(rand, ethnicity[1]),
@@ -507,7 +512,6 @@ rand <- rand |>
     agefb = chop_equally(agefbn, 2, labels = c("Low", "High"))
   )
 
-# TE I've plotted the mean values by year. They look reasonably stable. Beauchamp 2016 took a three year average. I don't think this is necessary
 
 rand$neurot <- rand |> 
   select(matches("r\\d+lbneur")) |> 
@@ -538,7 +542,7 @@ rand <- rand |>
          agefb, agefbn, rabyear, born, raehsamp, raestrat, 
          parent_weight, ragender, adhd_score, neurot, r10diabe, 
          r10hearte, r10cesd, age_smoked, anxiety, r10cogtot, 
-         rlrs_div_h10gkid, child_weight)
+         rlrs_div_h13gkid, child_weight, h13ageokid)
 
 r_parents <- svydesign(
     id = ~ raehsamp,
@@ -553,7 +557,8 @@ r_child <- svydesign(
 		strata = ~ raestrat,
 		weights = ~ child_weight, 
 		nest = TRUE,
-		data = rand |> drop_na(child_weight) 
+		data = rand |> drop_na(child_weight) |>
+		        filter(!is.na( rlrs_div_h13gkid), h13ageokid > 39)
 		)
 
 rand <- svydesign(
@@ -569,7 +574,7 @@ n_black <- nrow(rand |> subset(ethnicity == "black"))
 
 ```
 
-@hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components.
+@hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components:
 
 1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
 2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
@@ -580,13 +585,11 @@ Here, we make an independent test of the theory in the US population, using the 
 
 The HRS sample focuses on cohorts born between 1920 and 1960, but contains some younger and older participants. we include only male participants born before 1965 and female participants born before 1970, which guarantees that most will have completed their fertility by 2010. The resulting sample contains `r n_white` genotyped white participants and `r n_black` genotyped black participants.
 
-<!--#  TE sources of pgs are not mentioned in the data section. I've added that since we are now using two sources -->
-
 Genotyping took place in 2006, 2008 and subsequent years. PGS were taken from those pre-calculated by the HRS [@hrspgs2020] and those produced by the Social Science Genetic Association Consortium, as part of their Polygenic Index Repository [@becker2021resource]. Scores created by the HRS were provided for black and white participants, but Polygenic Index Repository scores were only created for white participants.
 
-For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from European ancestry GWAS and GWAS with samples of different ancestry. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants and `r length(pgs_black)` for the black participants. PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, we control for ten within-ethnicity principal components of the DNA array data.
+For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from both European ancestry and multiple ancestry GWAS. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants and `r length(pgs_black)` for the black participants. PGS are rescaled to zero mean and unit variance within each ethnic group, so coefficient sizes are not directly comparable between ethnic groups, but are measured in standard deviations of the within-ethnic-group score. In all regressions using PGS, we control for ten within-ethnicity principal components of the DNA array data.
 
-The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population. The mean number of children of people born in the same year was calculated using sampling weights.
+The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population. The mean number of children of people born in the same year was calculated using sampling weights.
 
 The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R "survey" package [@lumleysurvey2023].
 
@@ -596,6 +599,7 @@ The HRS contains weights which match survey respondents to the US population. We
 #| label: stat-regressions
 
 # cache seems to cause trouble even with cache-lazy: FALSE 
+options("survey.lonely.psu" = "average")
 
 tidy_pgs <- mod_pgs <- list()
 tidy_pgs_ed <- mod_pgs_edyrs <- list()
@@ -670,9 +674,8 @@ for (eth in eths) {
                      tidy_pgs_ed[[eth]]$estimate)
   
   
-  
     form_pgs_gkids <- map(pgs, 
-                       \(x) reformulate(c(x, pcs), response = "rlrs_div_h10gkid"))
+                       \(x) reformulate(c(x, pcs), response = "rlrs_div_h13gkid"))
   mod_pgs_gkids[[eth]] <- map(form_pgs_gkids,
                                     \(x) svyglm_quiet(x, r_child_eth))
   
@@ -767,21 +770,19 @@ tidy_pgs_eth <- list_rbind(tidy_pgs)
 n_tests <- nrow(tidy_pgs_eth)
 n_sig_bonf <- sum(tidy_pgs_eth$p.value < 0.05/n_tests)
 
-# TE bonferroni correction might make more sense focusing on white tests
-# Either way seems to produce the same result
 
 n_tests_white <- nrow(tidy_pgs$white)
-n_sig_bonf_white <- sum(tidy_pgs$white$p.value < 0.05/n_tests)
+n_sig_bonf_white <- sum(tidy_pgs$white$p.value < 0.05/n_tests_white)
 
 n_tests_black <- nrow(tidy_pgs$black)
-n_sig_bonf_black <- sum(tidy_pgs$black$p.value < 0.05/n_tests)
+n_sig_bonf_black <- sum(tidy_pgs$black$p.value < 0.05/n_tests_black)
 
 
 ```
 
 ```{r}
 #| label: stat-bootstrap-eth-cor
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| eval: false
 
@@ -814,13 +815,11 @@ cor_eths_boot <- withReplicates(rand_boot, theta = calc_eth_cor)
 ci_eths <- confint(cor_eths_boot)[1,]
 ```
 
-<!--# TE edited because 3 scores are bonferroni significant in whites. As of writing the same same three scores were signficiant regardlesss of whether we pool the blacks and whites in the bonferroni calculation.-->
-
-We estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes. `r n_sig_bonf` scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests`. The scores are age at first birth, educational attainment and attention deficit disorder. But we are most concerned with looking at patterns across scores rather than judging the significance of individual scores.
+We estimated coefficients of PGS on RLRS among black and white respondents separately. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients for white respondents only; power is too low for individual PGS estimates to be informative in the black sample. Standard errors are large because of the relatively low sample sizes. In the white sample, `r n_sig_bonf` scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests_white`. The scores are age at first birth, educational attainment, ADHD, and self-rated health. But we are most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
 #| label: stat-bootstraps
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| cache-comments: false
 
@@ -876,7 +875,7 @@ for (eth in eths) {
   cors_sibs_edu[[eth]] <- 
     withReplicates(r_parents_boot, theta = calc_cors_edu, var = "r10sibs")
   cors_gkids_edu[[eth]] <- 
-    withReplicates(r_child_boot, theta = calc_cors_edu, var = "rlrs_div_h10gkid")
+    withReplicates(r_child_boot, theta = calc_cors_edu, var = "rlrs_div_h13gkid")
 }
 
 options(old_opts)
@@ -938,7 +937,7 @@ if (insignificant(ci_boot_gkids$white)) warning("ci_boot_gkids$white insignifica
 if (significant(ci_boot_gkids$black)) warning("ci_boot_gkids$black significant")
 ```
 
-@fig-rlrs-edu plots each PGS's partial correlation with RLRS against its partial correlation with educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [@canty1999resampling] are used so as to make inferences from the sample of respondents.
+@fig-rlrs-edu plots each PGS's regression beta on RLRS against its regression beta on educational attainment. The relationship is negative among whites (correlation `r cors_fert_edu$white[1]`, bootstrap 95% C.I. `r ci_boot_fert$white[1]` to `r ci_boot_fert$white[2]`) and negative but insignificant among blacks (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Survey bootstraps [@canty1999resampling] are used so as to make inferences from the sample of respondents.
 
 ```{r}
 #| label: fig-rlrs-edu
@@ -989,11 +988,12 @@ tmp <-
 cor_no_outliers <- cor(tmp$estimate.sibs, tmp$estimate.edyrs)
 # if (! cor_no_outliers < 0) stop("Correlation without outliers IS NOT neg.")
 # TE correlation without outliers is not NEG
+# But it is not negative anyway now
 ```
 
 ```{r}
 #| label: stat-bootstrap-gen-cor
-#| cache: true
+#| cache: false
 
 n_reps_gen_cor <- 199
 pgs <- pgs_white
@@ -1021,19 +1021,19 @@ ci_gen_cor <- confint(gen_cor)
 
 ```{r}
 #| label: stat-bootstrap-gen-cor-gkids
-#| cache: true
+#| cache: false
 
 n_reps_gen_cor <-  199
 pgs <- pgs_white
 
 f_resp <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-f_gkids <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs_div_h10gkid"))
+f_gkids <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs_div_h13gkid"))
   
 estimate_gen_cor <- function (w, data) {
   data$w <- w # avoid w getting lost by map and lm
   m_resp <- map(f_resp, \(x) lm(x, data, weights = w))
-  m_gkids <- map(f_gkids, \(x) lm(x, data, weights = w*raevbrn))
-  
+  m_gkids <- map(f_gkids, \(x) lm(x, data |> filter(h13ageokid > 39), weights = w*raevbrn))
+  # data subset so respondent's kids have 1+ married kids
   coef_resp <- map2_dbl(m_resp, pgs, \(x, y) coef(x)[[y]])
   coef_gkids <- map2_dbl(m_gkids, pgs, \(x, y) coef(x)[[y]])
   c(gen_cor = cor(coef_resp, coef_gkids))
@@ -1048,21 +1048,21 @@ ci_gen_cor_gkids <- confint(gen_cor_gkids)
 
 ```
 
-<!--# TE Added grandkids and fixed minor typos -->
+We can also examine natural selection in the preceding and succeeding generations, by using reported number of siblings and grandchildren respectively. We regress PGS on respondents' number of living siblings in 2010. Data for dead siblings has too many missing values to use. We reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are only significant and negative in the white respondents, although ethnicities have large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). There is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (among whites: `r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
 
-We can also examine natural selection in the preceding and succeeding generations, by using reported number of siblings and grandchildren respectively. We regress PGS on respondents' number of living siblings in 2010. Data for dead siblings has too many missing values to use. We reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are only significant and negative in the white respondents, although ethnicities have large standard errors (whites: correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`; blacks: correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). There is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (among whites: `r gen_cor`,cbootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
+To examine selection in the succeeding generation, we divide the respondents' number of grandchildren by their number of children. In other words, we calculate the average number of children the respondent's children have. This indicates reproductive success in the second generation which we can call RLRS2. `r gkids_unusable_white` white respondents and `r gkids_unusable_black` black respondents report having grandchildren despite reporting having reported no children. These individuals were removed for this test. In regression we reweight respondents by the number of children they have, since more fecund grandparents account for a larger proportion of the next generation.
 
-To examine selection in the succeeding generation, we divide the respondents' number of grandchildren by their number of children. In other words, we calculate the average number of children the respondent's children have. This measures the reproductive success in the second generation which we can call RS2. `r gkids_unusable_white` white respondents and `r gkids_unusable_black` black respondents report having grandchildren despite reporting having had no children. These individuals were removed for this test. In regression we reweight respondents by the number of children they have, since more fecund grandparents account for a larger proportion of the next generation. Older grandparents will have more time for their number of grandkids to accumulate. To deal with this time trend, we divide RS2 by the mean RS2 of respondents born in the same year, creating relative RS2 (RRS2).
+Older grandparents will have more time for their number of grandkids to accumulate. To better deal with this time trend, we subset the data to parents whose oldest child was $40$ years old or older in $2016$, when the number of grandchildren was recorded. Appendix @fig-offspring-cohorts shows the distribution of the birth year of the oldest child, adjusted for sampling weights. A majority of the observations are after $1960$, the most recent year the respondents were born in. This reassures us that we are observing reproduction in later generations.
 
-We regress the respondent's (the grandparent's) PGS on RRS2. The resulting coefficient is only a proxy for selection in the next generation, not a perfect measure. The grandparent's PGS indicates, but does not determine the PGS of the parent. To know the expected parent's PGS, we would need both grandparent's PGS. Given that some respondents do not have a partner in the HRS and some have had children with multiple partners, such an approach is untenable in our sample. We expect the effect of the grandparent's PGS to also be dependent upon the level of assortative mating for the trait. For traits with high assortative mating, the grandparent's PGS will more strongly predict the parent's PGS, leading to a greater regression slope.
+We regress the respondent's (the grandparent's) PGS on RLRS2. The resulting coefficient is only a proxy for selection in the next generation, not a perfect measure. The grandparent's PGS indicates, but does not determine the PGS of the parent. To know the expected parent's PGS, we would need both grandparent's PGS. Given that some respondents do not have a partner in the HRS and some have had children with multiple partners, such an approach is untenable in our sample. We expect the effect of the grandparent's PGS to also be dependent upon the level of assortative mating for the trait. For traits with high assortative mating, the grandparent's PGS will more strongly predict the parent's PGS, leading to a greater regression slope.
 
-Appendix @fig-gkids plots coefficients on RRS2 versus coefficients on years of education. Correlations are significant for whites but not blacks. Standard errors were moderate in whites, but large in blacks (whites: correlation `r cors_gkids_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$white[1]` to `r ci_boot_gkids$white[2]`; blacks: correlation `r cors_gkids_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$black[1]` to `r ci_boot_gkids$black[2]`). There is a strong positive correlation between the parent and grandchild regressions, i.e. between PGS coefficients on RRS2 and RLRS (among whites: `r gen_cor_gkids`, bootstrapped 95% C.I. `r ci_gen_cor_gkids[1,1]` to `r ci_gen_cor_gkids[1,2]`).
+Appendix @fig-gkids plots coefficients on RLRS2 versus coefficients on years of education. Correlations are significant for whites but not blacks. Standard errors were large in both ethnicites (whites: correlation `r cors_gkids_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$white[1]` to `r ci_boot_gkids$white[2]`; blacks: correlation `r cors_gkids_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$black[1]` to `r ci_boot_gkids$black[2]`). There is a positive correlation between PGS coefficients on RLRS2 and RLRS (among whites: `r gen_cor_gkids`, bootstrapped 95% C.I. `r ci_gen_cor_gkids[1,1]` to `r ci_gen_cor_gkids[1,2]`), indicating some stability in selection over time.
 
 We next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. From here on we only use the white subsample: there are too few black respondents to be informative.
 
 ```{r}
 #| label: stat-x-bootstrap-cors
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| eval: false
 
@@ -1126,12 +1126,13 @@ options(old_opts)
 
 ```{r}
 #| label: stat-x-bootstrap-effect-size
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| cache-comments: false
 
 
 n_reps_x_es <-  199
+pgs <- pgs_white
 
 calc_diff_effect_size <- function (w, data, term) {
   groups <- switch(term,
@@ -1181,9 +1182,11 @@ for (term in terms) {
 
 ```{r}
 #| label: stat-bootstrap-agefb
-#| cache: true
+#| cache: false
+
 
 n_reps_agefb <-  199
+pgs <- pgs_white
 
 calc_cor_agefb <- function (w, data) {
   forms <- pgs |> map(\(x) reformulate(c(x, pcs), response = "raevbrn"))
@@ -1211,6 +1214,7 @@ ci_discordant <- confint(cor_agefb)[2,]
 # significantly different from 1/2?
 stopifnot(ci_discordant[1] <= length(pgs)/2 && 
             ci_discordant[2] >= length(pgs)/2)
+# TE THEY ARE DISCORDANT
 
 
 ```
@@ -1239,7 +1243,8 @@ Appendix @fig-x-agefb splits respondents by age at first birth (median within ea
 
 
 # selection effects controlling for age at first birth
-# 
+pgs <- pgs_white
+
 form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn", pcs), 
                                                     response = "rlrs"))
 mod_pgs_control_agefb <- map(form_pgs_control_agefb,
@@ -1297,9 +1302,10 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 ```{r}
 #| label: stat-x-bootstrap-birthyear
-#| cache: true
+#| cache: false
 
 n_reps_birthyear <-  199
+pgs <- pgs_white
 
 forms <- pgs |> map(\(x) reformulate(c(x, pcs), response = "raevbrn"))
 
@@ -1325,31 +1331,43 @@ cor_agefb <- withReplicates(rand_boot, theta = calc_birthyear)
 
 Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated (see @fig-rlrs-edu). But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Looking within the sample, changes in PGS by birth year are small for both groups, and are probably mostly driven by selective mortality. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s. The last line of @tbl-x-bootstraps shows that effect sizes are larger for respondents born after 1942, but the difference is imprecisely estimated and not significant.
 
+```{r}
+#| label: ADHD
+#| cache: false
+
+# Testing the R2 of the ADHD PGS
+rand$variables |>
+  with(cor.test(adhd_score, ADHD, use = "pairwise.complete")) -> adhd_cor
+
+```
+
 Lastly, we would like to know natural selection's effect sizes. The bivariate correlations of PGS with RLRS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated correlations are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
 
 $$
 \hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}
 }$$
 
-where \$h\^2\$ is the heritability of the PGS target phenotype and \$R\^2\_{PGS}\$ is the \$R\^2\$ of the measured PGS on the target phenotype [@becker2021resource]. Moving from error correction in a univariate model to a multivariate model requires a slightly more complex correction, although it uses the same parameters. To do this we use the error-corrected estimator developed by \@becker2021resource.
+where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. Moving from error correction in a univariate model to a multivariate model, controlling for principal components of genetic array data, requires a slightly more complex correction, although it uses the same parameters. To do this we use the error-corrected estimator developed by @becker2021resource.
 
-SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^2]. We remove polygenic scores with $R^2_{PGS} > 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction.
+SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^2]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^3].
 
 [^2]: For age of first birth, we could not find an appropriately close trait in @polderman2015twin. For this trait we used a twin heritability of 0.15 as estimated in the Midlife in the United States (MIDUS) sample [@briley2017fertility].
 
-@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. Age of First Birth has a twin corrected heritability of 0.15, implying that it maybe under fast selection. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true \$h\^2\$ , the true \$R\^2\_{PGS}\$, limitations of the within-sample phenotypes, noise from correlated environments, and for twin-heritability, different relationships with fertility among variants not measured on the chip. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
+[^3]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we are unable to justify using the error-corrected estimator with the ADHD polygenic score.
 
-Results from a few traits show substantial uncertainty regarding the true effect size. For asthma, when chip heritability is used, the effect is positive and significant, but negative and significant when twin heritability is used! Such a large disparity is because @becker2021resource estimate the chip heritability at 0.015 and we use a twin heritability 0f 0.55. For personality traits, chip heritability is often low (e.g. $<0.05$) but twin heritabilities are often much higher ($≈0.4$) implying substantial missing heritability. For these traits, the confidence intervals on twin heritabilities are enormous. Error-corrected effect sizes and the $R^2$ and $h^2$ parameters used can be found on the Github page for this paper.
+@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
 
-<!--# TE The lay public want to know how much IQ is changing. So I've added in a calculation of this. -->
+Results from a few traits show substantial uncertainty regarding the true effect size. For asthma, when chip heritability is used, the effect is positive and significant, but negative and significant when twin heritability is used! Such a large disparity is because @becker2021resource estimate the chip heritability at 0.015 and we use a twin heritability 0f 0.55. For personality traits, chip heritability is often low (e.g. $<0.05$) but twin heritabilities are often much higher ($≈0.4$) implying substantial missing heritability. For these traits, the confidence intervals on twin heritabilities are enormous. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
 
 To estimate how natural selection will contribute to changing the phenotype, we can multiply the change in the mean genetic value by the correlation between genetic values and phenotypes $h$, which is the square root of heritability. For cognitive performance we have estimated a genetic change of $-0.066$ standard deviations per generation, assuming a twin heritability of $0.51$. This implies a phenotypic change of $-0.066\times0.51^\frac{1}{2}=-0.047$ standard deviations per generation, equivalent to $-0.71$ points in the units of IQ, where a standard deviation is equal to $15$ points. This calculation assumes the heritability of the trait remains constant, that the genetic correlation across time is equal to one and it ignores the environmental contributions to changes in the phenotype. Given the assumptions required for this calculation, on top of the problems involved in estimating the genetic change, it can only be considered a guess.
 
-<!--# TE It's hard to keep in the sanity check since we are jumping from LDSC back to GCTA to calcualte snp heritability with pgenscores. The above also uses PGI repository scores only. I can add the sanity check back in. To be fair, I'm only aware of the method being tested with different discovery sample sizes using simulated data (link below) the sanity check is useul. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10368647/-->
-
 ```{r}
 #| label: stat-pgicorrect
-#| cache: true
+#| cache: false
+
+# Testing the R2 of the ADHD PGS
+rand$variables |>
+  with(cor.test(adhd_score, ADHD,, use = "pairwise.complete")) -> adhd_cor
 
 # Writing data for pgi_correct to use
 readr::write_tsv(
@@ -1379,6 +1397,9 @@ correct_scores$R2 <- ifelse(is.na(correct_scores$HRS_R2),
 correct_scores$twin_h2 <- correct_scores$TwinH2
 correct_scores$pgs     <- correct_scores$Abr
 
+# This removes NEBwomen from the data
+correct_scores <- correct_scores[-which(correct_scores$pgs == "NEBwomen"),]
+
 correct_scores$pgs <- case_match(correct_scores$pgs,
   "CANNABIS" ~ "CANNABISpgirep",
   "DPW"      ~ "DPWpgirep",
@@ -1396,7 +1417,7 @@ correct_scores <- filter(correct_scores, chip_h2 > 0, R2 > 0)
 # adjustment to use Midus values for NEB is also used
 
 correct_scores$twin_h2[correct_scores$pgs == "AFB"] <- 0.15
-correct_scores$twin_h2[correct_scores$pgs == "NEBwomen"] <- 0.28
+#correct_scores$twin_h2[correct_scores$pgs == "NEBwomen"] <- 0.28
 
 
 ####################################
@@ -1450,7 +1471,7 @@ corrected_effects$conf.low <- corrected_effects$beta - 1.96 *
 corrected_effects$conf.high <- corrected_effects$beta + 1.96 *
                                corrected_effects$SE
 
-file.remove("pgi_correct_data.txt")
+unlink("pgi_correct_data.txt")
 
 corrected_effects <- left_join(corrected_effects, correct_scores,
                                by = join_by(trait == Abr),
@@ -1522,7 +1543,7 @@ corrected_effects |>
 
 ```{r}
 #| label: stat-bootstrap-true-effects
-#| cache: true
+#| cache: false
 #| eval: false
 
 #' Calculate corrected PGS
@@ -1689,11 +1710,13 @@ corrected_effects |>
 
 The economic theory of fertility is driven by the trade-off between children and income. On the one hand, a higher hourly wage makes time raising children more costly (a "substitution effect"). On the other hand, higher expected income makes children more affordable (an "income effect"). Prediction 1 of the theory holds when substitution effects dominate income effects. Prediction 2 is driven by the specific form of individuals' preferences for income: when utility for income is sharply curved, the substitution effect is stronger for those who expect to earn less.
 
-The results here support prediction 1 but are more ambiguous for prediction 2. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. The theory can accommodate this non-result, if preferences for income are less curved in the US for whatever reason. But note that *any* theory with a negative relationship between education and fertility will give prediction 1.[^3] In this sense, results here are less supportive of the economic theory specifically.
+The results here support prediction 1 but are more ambiguous for prediction 2. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. The theory can accommodate this non-result, if preferences for income are less curved in the US for whatever reason. But note that *any* theory with a negative relationship between education and fertility will give prediction 1.[^4] In this sense, results here are less supportive of the economic theory specifically.
 
-[^3]: See @balbo2013fertility for a broad review of fertility theories.
+[^4]: See @balbo2013fertility for a broad review of fertility theories.
 
-The smaller black sample makes most tests inconclusive for this population: we can only say that the data do not reject a negative association between PGS correlations with RLRS and PGS correlations with education. Lastly, estimated effect sizes of "true" polygenic scores are typically between 0-0.2 standard deviations. To know more, we must await more accurate scores.
+We also examined natural selection in different groups. Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The effects of natural selection are accumulating and the underlying causes of selection may have stayed the same over time. The smaller black sample makes most tests inconclusive for this population: we can only say that the data do not reject a negative association between PGS correlations with RLRS and PGS correlations with education.
+
+Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much intelligence is changing owing to natural selection, is similar to estimates given in the prior literature. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $-0.71$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those of education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
 
 # Appendix
 
@@ -1707,19 +1730,140 @@ Code to reproduce this paper is available at <https://github.com/hughjonesd/hrs-
 
 ```{r}
 #| label: fig-cohorts
-#| fig-cap: Distribution of birth years for the sample
+#| fig-cap: Distribution of birth years adjusted for sampling weights. 
 
-rand$variables |> 
+# TE old version saved here in case we want to revert
+
+#rand$variables |> 
+#    mutate(
+#      Ethnicity = fct_relevel(titles[ethnicity], "White", "Black")
+#    ) |> 
+#    ggplot(aes(rabyear, fill = Ethnicity)) + 
+#      geom_bar(position = "identity") +
+#      labs(x = "Birth year", y = "Count") +
+#      scale_fill_manual(values = c(Black = "orange2", White = "steelblue4")) +
+#      theme_minimal() +
+#      theme(legend.title = element_blank())  
+
+
+# Various packages and functions exist for making a weighted barplot
+# But the y axes show the count for the population, not a representative subsample. So I've made the weighted plot mannually. This way the y axis has sensible values rather than millions
+
+rand$variables <- rand$variables |> 
     mutate(
-      Ethnicity = fct_relevel(titles[ethnicity], "White", "Black")
+      weights_sample = (n_white+n_black)*weight/sum(weight)
+    )
+
+year_counts <- tibble()
+
+for (eth in eths) {
+  rand$variables |>
+    subset(ethnicity == eth) |>
+    count(rabyear, wt = weights_sample) |>
+    cbind(eth) |>
+    rbind(year_counts) -> year_counts
+}
+
+
+year_counts |>
+  mutate(
+      Ethnicity = fct_relevel(titles[eth], "White", "Black"),
     ) |> 
-    ggplot(aes(rabyear, fill = Ethnicity)) + 
-      geom_bar(position = "identity") +
+  ggplot(aes(x = rabyear, y = n, fill = Ethnicity)) + 
+      geom_bar(stat="identity") +
       labs(x = "Birth year", y = "Count") +
       scale_fill_manual(values = c(Black = "orange2", White = "steelblue4")) +
       theme_minimal() +
       theme(legend.title = element_blank())  
 
+```
+
+```{r}
+#| label: fig-sibling-cohorts
+#| eval: false
+#| fig-cap: Distribution of birth years adjusted for parent weights.
+
+# Ideally we'd like to know the time period we're analysing when we look at selection in the parent's generation. Unfortuantely we don't have the parents' age of birth only the parent's age if they are still alive or the age at which they died.
+
+# The next best thing we can do is look at the respondent's birth year adjusted for the parent weight. But this isn't very interesting and almost identical to weight by the respondent weight so the graph is left unevaluated.
+
+
+
+r_parents$variables <- r_parents$variables |> 
+    mutate(
+      weights_sample = (n_white+n_black)*parent_weight/
+                        sum(parent_weight)
+    )
+
+year_counts <- tibble()
+
+for (eth in eths) {
+  r_parents$variables |>
+    subset(ethnicity == eth) |>
+    count(rabyear, wt = weights_sample) |>
+    cbind(eth) |>
+    rbind(year_counts) -> year_counts
+}
+
+
+year_counts |>
+   mutate(
+      Ethnicity = fct_relevel(titles[eth], "White", "Black"),
+    ) |> 
+  ggplot(aes(x = rabyear, y = n, fill = Ethnicity )) + 
+      geom_bar(stat="identity") +
+      labs(x = "Birth year", y = "Count") +
+      scale_fill_manual(values = c(Black = "orange2", White = "steelblue4")) +
+      theme_minimal() +
+      theme(legend.title = element_blank())  
+
+
+
+```
+
+```{r}
+#| label: fig-offspring-cohorts
+#| fig-cap: Distribution of birth years for the oldest child of respondents, adjusted for sampling weights.
+
+
+n_oldest <- r_child$variables |> 
+     filter(!is.na(rlrs_div_h13gkid)) |>
+             nrow()
+
+child_graph_data <- r_child$variables |> 
+    filter(!is.na(rlrs_div_h13gkid)) |>
+    mutate(
+      yearageokid = 2016 - h13ageokid,
+      weights_sample = n_oldest*child_weight/
+                        sum(child_weight)
+      )
+
+
+year_counts <- tibble()
+
+for (eth in eths) {
+  child_graph_data |>
+    subset(ethnicity == eth) |>
+    count(yearageokid, wt = weights_sample) |>
+    cbind(eth) |>
+    rbind(year_counts) -> year_counts
+}
+
+
+year_counts |>
+  mutate(
+      Ethnicity = fct_relevel(titles[eth], "White", "Black"),
+    )  |> 
+  ggplot(aes(x = yearageokid, y = n, fill = Ethnicity )) + 
+      geom_bar(stat="identity") +
+      labs(x = "Birth year", y = "Count") +
+      scale_fill_manual(values = c(Black = "orange2", White =
+      "steelblue4")) +
+      theme_minimal() +
+      theme(legend.title = element_blank())  
+
+mean_yold_kid <- sum(year_counts$yearageokid*
+                       year_counts$n)/sum(year_counts$n)
 ```
 
 ```{r}
@@ -1783,7 +1927,7 @@ for (eth in eths) {
       theme_light() + 
       theme(panel.grid = element_blank()) +
       labs(
-          title = eth,
+          title = titles[eth],
           x = "Coefficient on years of education",
           y = "Coefficient on number of siblings"
       )
@@ -1795,7 +1939,7 @@ for (eth in eths) {
 #| label: fig-gkids
 #| fig-cap: |
 #|   Scatterplot of PGS coefficients on RLRS2 and years of
-#|   education. RRS2 is the reproductive success of respondent's offspring relative to the success of other offspring. Controls include 10 principal components of genetic array
+#|   education. RLRS2 is the reproductive success of respondent's offspring relative to the success of other offspring. Controls include 10 principal components of genetic array
 #|   data. Dashed lines show linear regressions.
 #| fig-subcap:
 #|   - ""
@@ -1819,9 +1963,9 @@ for (eth in eths) {
       theme_light() + 
       theme(panel.grid = element_blank()) +
       labs(
-          title = eth,
+          title = titles[eth],
           x = "Coefficient on years of education",
-          y = "Coefficient on RRS2"
+          y = "Coefficient on RLRS2"
       )
   print(ggp)
 }
