@@ -1,49 +1,49 @@
 trait,beta,SE,Heritability,chip_h2,twin_h2,R2,TwinH2_Source,PoldermanICF_ICD10_subchapter,Category
-BMI,0.00750230590619974,0.00955959797242074,Chip,0.206,0.63,0.129,Polderman,Weight Maintenance Functions,Health
-HEIGHTpgirep,-0.02475863842329137,0.0127232925378644,Chip,NA,NA,NA,NA,NA,NA
-CP,-0.04557157441500572,0.01494394959424997,Chip,0.307,0.51,0.077,Polderman,Higher-Level Cognitive Functions,Cognition
-EA,-0.05085535254389834,0.00962026664907866,Chip,0.196,0.52,0.098,Polderman,Education,Cognition
-AFB,-0.09030925273199825,0.01233705288706268,Chip,0.05,0.15,0.019,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,AFB,Health
-MENARCHE,-0.02160699248607734,0.01143763045895615,Chip,0.215,0.6,0.085,Polderman,Menstruation Functions,Health
-NEBwomen,-0.02160699248607734,0.01143763045895615,Chip,0.055,0.28,0.004,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,Completed Fertilitt,Health
-ASTHMA,0.01984164661404509,0.00785445694250178,Chip,0.015,0.53,0.011,Polderman,Asthma,Health
-ASTECZRHI,0.0514094518760177,0.03416672681723597,Chip,0.332,0.53,0.02,Polderman,Asthma,Health
-ADHD,-0.11344897165005025,0.02435917444697887,Chip,0.463,0.37,0.003,Polderman,Attention Functions,Health
-CPD,0.02888163234377616,0.02265352872945917,Chip,0.088,0.44,0.009,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
-DEP,0.05907298466996142,0.02082332761468935,Chip,0.109,0.45,0.015,Polderman,Recurrent Depressive Disorder,Health
-DPWpgirep,-7.3972495421574e-4,0.01374118211272076,Chip,NA,NA,NA,NA,NA,NA
-EVERSMOKE,0.03719232344847561,0.01113008409834831,Chip,0.113,0.44,0.044,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
-HAYFEVER,0.01401279177310804,0.01799953493761586,Chip,0.076,0.54,0.011,Polderman,Vasomotor and Allergic Rhnitis,Health
-ACTIVITY,-0.01899321738777989,0.01408967556180757,Chip,0.058,0.41,0.015,Polderman,Looking After One's health,Health
-SELFHEALTH,-0.0570478438618179,0.01271622906510881,Chip,0.104,0.41,0.031,Polderman,Looking After One's health,Health
-ADVENTURE,0.00696140590243328,0.02223665339601457,Chip,0.104,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
-EXTRA,0.0145526323689644,0.01756824603844762,Chip,0.082,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
-FAMSAT,0.00549173301813362,0.02249738919675967,Chip,0.076,0.44,0.009,Polderman,Temperament and Personality Functions,Personality
-FRIENDSAT,0.0962688451723921,0.03845453102400311,Chip,0.127,0.44,0.006,Polderman,Temperament and Personality Functions,Personality
-NEURO,0.04899451078669573,0.01625774554707408,Chip,0.115,0.44,0.024,Polderman,Temperament and Personality Functions,Personality
-OPEN,0.2353867100110558,0.29732792505658506,Chip,0.123,0.44,0.008,Polderman,Temperament and Personality Functions,Personality
-RELIGATT,-0.00911045216285692,0.01531523341131357,Chip,0.056,0.44,0.013,Polderman,Temperament and Personality Functions,Personality
-BMI,0.02331213603007693,0.02970482023956674,Twin,0.206,0.63,0.129,Polderman,Weight Maintenance Functions,Health
-HEIGHTpgirep,-0.06126962087760225,0.03148603314859292,Twin,NA,NA,NA,NA,NA,NA
-CP,-0.06566969903481018,0.02153457906257067,Twin,0.307,0.51,0.077,Polderman,Higher-Level Cognitive Functions,Cognition
-EA,-0.08928582523345549,0.01689012864452026,Twin,0.196,0.52,0.098,Polderman,Education,Cognition
-AFB,-0.2487122761746108,0.03397632481727699,Twin,0.05,0.15,0.019,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,AFB,Health
-MENARCHE,-0.04432018360933209,0.02346082557872245,Twin,0.215,0.6,0.085,Polderman,Menstruation Functions,Health
-NEBwomen,-0.04432018360933209,0.02346082557872245,Twin,0.055,0.28,0.004,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,Completed Fertilitt,Health
-ASTHMA,-0.3676534366096917,0.14553822793968546,Twin,0.015,0.53,0.011,Polderman,Asthma,Health
-ASTECZRHI,0.07832555134350545,0.05205516919372755,Twin,0.332,0.53,0.02,Polderman,Asthma,Health
-ADHD,-0.13733744436869474,0.02948838333941635,Twin,0.463,0.37,0.003,Polderman,Attention Functions,Health
-CPD,0.10621437805767012,0.08331005796941074,Twin,0.088,0.44,0.009,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
-DEP,0.2890112950764472,0.10187697329576076,Twin,0.109,0.45,0.015,Polderman,Recurrent Depressive Disorder,Health
-DPWpgirep,-0.00218638836636553,0.04061450210671871,Twin,NA,NA,NA,NA,NA,NA
-EVERSMOKE,0.0887141177741028,0.02654837073850558,Twin,0.113,0.44,0.044,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
-HAYFEVER,0.05049794653668788,0.06486498676940078,Twin,0.076,0.54,0.011,Polderman,Vasomotor and Allergic Rhnitis,Health
-ACTIVITY,-0.11132084716027238,0.08258077542791538,Twin,0.058,0.41,0.015,Polderman,Looking After One's health,Health
-SELFHEALTH,-0.13454662955525531,0.02999106794477965,Twin,0.104,0.41,0.031,Polderman,Looking After One's health,Health
-ADVENTURE,-0.11869870932345328,0.3791564656296336,Twin,0.104,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
-EXTRA,0.22571767910401,0.2724911631921423,Twin,0.082,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
-FAMSAT,0.113462332081579,0.46480887464527026,Twin,0.076,0.44,0.009,Polderman,Temperament and Personality Functions,Personality
-FRIENDSAT,0.5711712361029012,0.2281539991406912,Twin,0.127,0.44,0.006,Polderman,Temperament and Personality Functions,Personality
-NEURO,0.15942835198985678,0.05290277498483184,Twin,0.115,0.44,0.024,Polderman,Temperament and Personality Functions,Personality
-OPEN,-0.01676173920153741,0.02117253406914386,Twin,0.123,0.44,0.008,Polderman,Temperament and Personality Functions,Personality
-RELIGATT,-0.7684178607876501,1.2917579374780244,Twin,0.056,0.44,0.013,Polderman,Temperament and Personality Functions,Personality
+BMI,0.00750230590619967,0.00955959797242075,Chip,0.206,0.63,0.129,Polderman,Weight Maintenance Functions,Health
+HEIGHTpgirep,-0.02475863842329118,0.01272329253786438,Chip,NA,NA,NA,NA,NA,NA
+CP,-0.04557157441500595,0.01494394959424996,Chip,0.307,0.51,0.077,Polderman,Higher-Level Cognitive Functions,Cognition
+EA,-0.05085535254389881,0.00962026664907866,Chip,0.196,0.52,0.098,Polderman,Education,Cognition
+AFB,-0.09030925273199784,0.01233705288706268,Chip,0.05,0.15,0.019,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,AFB,Health
+MENARCHE,-0.02160699248607743,0.01143763045895615,Chip,0.215,0.6,0.085,Polderman,Menstruation Functions,Health
+NEBwomen,-0.02160699248607743,0.01143763045895615,Chip,0.055,0.28,0.004,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,Completed Fertilitt,Health
+ASTHMA,0.01984164661404542,0.00785445694250177,Chip,0.015,0.53,0.011,Polderman,Asthma,Health
+ASTECZRHI,0.05140945187601702,0.03416672681723598,Chip,0.332,0.53,0.02,Polderman,Asthma,Health
+ADHD,-0.11344897165005068,0.02435917444697888,Chip,0.463,0.37,0.003,Polderman,Attention Functions,Health
+CPD,0.0288816323437753,0.02265352872945918,Chip,0.088,0.44,0.009,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
+DEP,0.05907298466996086,0.02082332761468936,Chip,0.109,0.45,0.015,Polderman,Recurrent Depressive Disorder,Health
+DPWpgirep,-7.397249542156e-4,0.01374118211272076,Chip,NA,NA,NA,NA,NA,NA
+EVERSMOKE,0.03719232344847508,0.01113008409834831,Chip,0.113,0.44,0.044,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
+HAYFEVER,0.01401279177310716,0.01799953493761586,Chip,0.076,0.54,0.011,Polderman,Vasomotor and Allergic Rhnitis,Health
+ACTIVITY,-0.01899321738777923,0.01408967556180757,Chip,0.058,0.41,0.015,Polderman,Looking After One's health,Health
+SELFHEALTH,-0.05704784386181761,0.01271622906510882,Chip,0.104,0.41,0.031,Polderman,Looking After One's health,Health
+ADVENTURE,0.0069614059024334,0.02223665339601457,Chip,0.104,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
+EXTRA,0.01455263236896442,0.01756824603844761,Chip,0.082,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
+FAMSAT,0.00549173301813358,0.02249738919675968,Chip,0.076,0.44,0.009,Polderman,Temperament and Personality Functions,Personality
+FRIENDSAT,0.0962688451723922,0.0384545310240031,Chip,0.127,0.44,0.006,Polderman,Temperament and Personality Functions,Personality
+NEURO,0.04899451078669543,0.01625774554707408,Chip,0.115,0.44,0.024,Polderman,Temperament and Personality Functions,Personality
+OPEN,0.23538671001105316,0.29732792505658534,Chip,0.123,0.44,0.008,Polderman,Temperament and Personality Functions,Personality
+RELIGATT,-0.00911045216285717,0.01531523341131357,Chip,0.056,0.44,0.013,Polderman,Temperament and Personality Functions,Personality
+BMI,0.02331213603007622,0.02970482023956673,Twin,0.206,0.63,0.129,Polderman,Weight Maintenance Functions,Health
+HEIGHTpgirep,-0.06126962087760141,0.03148603314859294,Twin,NA,NA,NA,NA,NA,NA
+CP,-0.06566969903481017,0.02153457906257068,Twin,0.307,0.51,0.077,Polderman,Higher-Level Cognitive Functions,Cognition
+EA,-0.0892858252334557,0.01689012864452026,Twin,0.196,0.52,0.098,Polderman,Education,Cognition
+AFB,-0.2487122761746103,0.03397632481727698,Twin,0.05,0.15,0.019,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,AFB,Health
+MENARCHE,-0.04432018360933228,0.02346082557872245,Twin,0.215,0.6,0.085,Polderman,Menstruation Functions,Health
+NEBwomen,-0.04432018360933228,0.02346082557872245,Twin,0.055,0.28,0.004,https://link.springer.com/article/10.1007/s10519-016-9805-3/tables/1,Completed Fertilitt,Health
+ASTHMA,-0.3676534366096898,0.14553822793968546,Twin,0.015,0.53,0.011,Polderman,Asthma,Health
+ASTECZRHI,0.07832555134350438,0.05205516919372753,Twin,0.332,0.53,0.02,Polderman,Asthma,Health
+ADHD,-0.13733744436869358,0.02948838333941637,Twin,0.463,0.37,0.003,Polderman,Attention Functions,Health
+CPD,0.10621437805767683,0.0833100579694108,Twin,0.088,0.44,0.009,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
+DEP,0.2890112950764477,0.10187697329576076,Twin,0.109,0.45,0.015,Polderman,Recurrent Depressive Disorder,Health
+DPWpgirep,-0.00218638836636659,0.04061450210671873,Twin,NA,NA,NA,NA,NA,NA
+EVERSMOKE,0.0887141177741032,0.02654837073850558,Twin,0.113,0.44,0.044,Polderman,Mental and Behavioural Disorders Due to Use of Tobacco,Health
+HAYFEVER,0.05049794653668953,0.0648649867694008,Twin,0.076,0.54,0.011,Polderman,Vasomotor and Allergic Rhnitis,Health
+ACTIVITY,-0.111320847160275,0.08258077542791542,Twin,0.058,0.41,0.015,Polderman,Looking After One's health,Health
+SELFHEALTH,-0.13454662955525473,0.02999106794477964,Twin,0.104,0.41,0.031,Polderman,Looking After One's health,Health
+ADVENTURE,-0.1186987093234509,0.37915646562963234,Twin,0.104,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
+EXTRA,0.22571767910400095,0.2724911631921419,Twin,0.082,0.44,0.016,Polderman,Temperament and Personality Functions,Personality
+FAMSAT,0.1134623320815592,0.4648088746452704,Twin,0.076,0.44,0.009,Polderman,Temperament and Personality Functions,Personality
+FRIENDSAT,0.5711712361029028,0.22815399914069107,Twin,0.127,0.44,0.006,Polderman,Temperament and Personality Functions,Personality
+NEURO,0.15942835198985952,0.05290277498483184,Twin,0.115,0.44,0.024,Polderman,Temperament and Personality Functions,Personality
+OPEN,-0.01676173920153748,0.02117253406914385,Twin,0.123,0.44,0.008,Polderman,Temperament and Personality Functions,Personality
+RELIGATT,-0.7684178607876089,1.291757937478026,Twin,0.056,0.44,0.013,Polderman,Temperament and Personality Functions,Personality

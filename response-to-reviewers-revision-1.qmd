@@ -1,0 +1,183 @@
+---
+title: "'Natural Selection Across Three Generations of Americans': response to reviewers"
+format: docx
+---
+
+
+Dear Professor Medland,
+
+Thank you for the opportunity to revise our manuscript. Thank you also to the
+reviewers. We respond to their points below. 
+
+One major change is that I have asked Tobias Edwards to be a co-author. I
+discovered that he was working on similar topics, so we merged our efforts.
+I hope this is OK. One effect is just that we have more polygenic scores to
+analyse. The original results are 
+not much changed, which is encouraging. TODO and what else?
+XXX Another is that we look in more detail at two extra generations,
+using children and grandparents of the respondents. We've given the paper
+a title which reflects that. 
+
+With best wishes,
+
+David Hugh-Jones
+
+
+Reviewer Comments:
+
+# Reviewer 1
+
+*Thanks for the opportunity to read the manuscript ‘Natural selection in the Health and Retirement Study’. This study is of great interest to the behavior genetics and population genetics community and beyond. It demonstrates ongoing natural selection in a descriptive manner and partly confirms ideas about the trade-off between childbearing and work. I have a few comments.*
+
+*First, it would be good to state in the abstract the expectations about the tested interactions. Otherwise it reads as though interactions with low income etc have been tested arbitrarily.*
+
+*Second, in the introduction, it is implied that people with larger human capital work more, but it remains unclear why. Only in the discussion section, it is elaborated on the idea of substitution effect, that larger human capital leads to larger income loss when work is reduced for alternative activities. Note that this phenomenon is also known as opportunity costs of larger human capital. This should be explained early and explicitly as in absolute terms, one might argue that larger human capital increases net income and therefore might lead to working less and having more children with the same income.*
+
+*In a similar vein, it would be very welcome to reiterate reason why the expected effect is stronger amongst low income etc people.*
+
+We now detail the theory more in the abstract, and we've described the substitution
+effects and income effects straight away in the intro. We've tried to keep the
+language as simple and intuitive as possible.
+
+
+*I was wondering why the authors control for PCAs in the PGI analyses. As stated by the authors, this study is not a causal study but one of correlations. The consequence of a correlation (natural selection) should be independent of its causes.*
+
+Note that controlling for principal components in a regression,
+*y ~ PGIs + PCs*, gives the
+same effect sizes as running an uncontrolled regression on PGIs which have
+previously had the PCs residualized  out, *y ~ PGIs_resid*. We control rather than
+residualizing because this gives the correct standard errors^[Because the controls are correctly accounted for when calculating degrees of freedom.], which might matter 
+with our relatively low N.
+
+Why residualize or control for principal components at all? I think for two reasons. First, we are ultimately interested in selection on the "true PGI". Stripping out PCs
+is an admittedly imperfect way to control for confounding population stratification.
+Second, PGIs are typically residualized in this way, so by examining the effect
+of these we're following the "industry standard" and learning about scores in the
+form they are actually used.
+
+
+*In general, the authors state that they are less interested in significance but in effect sizes. First, this is very generous. Whilst I find this acceptable, it would be good to read one or two more sentences on why the authors think this is legitimate in this case. Second, I believe such a descriptive approach might be useful studying the patterns of natural selection, however, when it comes to the interactions, the author state that effects ‘Appear larger for unmarried’, for example. It remains unclear to me when an effect is considered larger or not, which becomes important as the author differentiates between interactions which are real and those which are not. What are the criteria here.*
+
+First, one could argue that the literal null hypothesis is not really plausible here. 
+If *any* PGI is under selection in the population (clearly true), then
+some underlying variants must also be under selection. Since all PGIs are just 
+weighted sums of underlying variants, it will then be a knife-edge
+case for any other PGI to have exactly zero correlation with fertility. What
+matters more is whether effect sizes are big, small or trivial.
+
+More specifically, we're interested in the pattern of selection effects 
+across different PGIs,
+and how it correlates with the PGI's relationship to income. So we want to
+include PGIs with small selection effects, which we predict to have a low 
+absolute correlation to income. Given the sample size, these PGIs are very likely
+to have insignificant individual selection effects, but we shouldn't
+ignore them in the cross-PGI analyses.
+
+When we examine relationships across scores, we indeed test for
+significance, always by bootstrapping the sample. TODO: do we always?
+
+*The authors state that the correlation between the PGI and fertility quantifies natural selection. However, to my knowledge it is the covariance following the Robert-Price Identity: Morrissey, M. B., L. E. B. Kruuk, and Alastair J. Wilson. "The danger of applying the breeder's equation in observational studies of natural populations." Journal of evolutionary biology 23.11 (2010): 2277-2288.*
+
+TODO: Tobias, can you check the relevant para? I guess that if both PGI and RLRS are
+normalized then the covariance is the correlation; but actually isn't the correct
+thing covariance with the not-normalized RLRS?
+
+
+*The authors might want to discuss the expected selection in terms of relevance. They quantify it but they do not discuss these quantifications. This is very important shaping our expectation of ongoing natural selection. It might also be very interesting to know more about whether those trends follow the secular trends in phenotypes.*
+
+We have now added a final paragraph to the Discussion section on this.
+In particular we discuss PGIs for health phenotypes, as a corrective to
+the existing literature which is perhaps a bit over-focused on cognition and
+IQ.
+
+TODO: Could we look at health trends in phenotypes? I'd guess
+that health trends improve over the C20, but we could look at some specifics.
+(Depression/BMI?) One big issue here is that maybe the PGIs have confounds...
+but perhaps that's less serious for some of these phenotypes
+
+
+*Finally, the statement ’in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (-0.319), and for 42 out of 58 PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and 29 respectively.’ was not entirely clear to me. What does it mean that 42 PGS had opposite sign effects? Does that mean for old versus younger parents’ coefficients were very different, even in the opposite direction? How does this relate to the first part of the sentence that coefficients were negative. Also, why has this been tested against 0 and 29?*
+
+The earlier claim is not "coefficients are negative overall" but 
+"coefficients among younger parents are negatively correlated with coefficients
+among older parents". We are dealing with correlations of correlations: this
+can get confusing.
+
+Negatively correlated, and more strongly, opposite-signed, effects between
+young and old parents support the theory that income effects dominate for
+older parents while substitution effects dominate for younger parents. To
+be a bit more explicit: if a PGS simply doesn't correlate with human capital,
+we expect it to not be selected on among either group of parents. If a PGS
+is correlated with human capital, that will lead to income and substitution effects
+for those with more human capital. If the substitution effect dominates for
+younger parents then the PGS will have a negative correlation with fertility;
+if the income effect dominates for older parents, then the PGS will have a positive
+correlation with fertility.
+
+The test against 29 had the following logic: if all effects were really zero,
+and estimates were pure noise with mean 0, then we'd expect opposite-signed and same-signed "effects" to be equally likely; so, 29 is half of the 58 scores. However,
+this is a rather specific null. A more natural null is that selection effects
+are non-zero, but the same among both groups of parents. Then 
+young-parent effects would be equally likely to be higher, or lower, than old-parent
+effects.
+
+TODO: can we figure out a test for this? 
+
+Test: take difference between scores, times the sign of the low group score.
+Then under the null we'd expect as many + as - differences. 
+
+Really we should be doing the right test always! If abs size isn't enough...!
+
+# Reviewer 2
+
+*The author sought to examine natural selection as indicated by polygenic scores in a contemporary representative sample of the U.S. and found that the results partially support the economic theory of fertility as a result of natural selection among both white and black individuals. The authors' hypotheses are based primarily on the economic theory of fertility, which emphasizes a trade-off between the number of children and income: i) higher income makes raising children costlier, but ii) higher income makes having more children more affordable. As far as I understand the results of the paper, the results support prediction 1, but are more ambiguous for prediction 2?*
+
+*However, in my opinion the theoretical database, data and analysis are adequate, the problem I have is that the MS is a bit confusing. It should be made clearer why an analysis was done and what the results mean in terms of rejecting or accepting the theoretical assumptions. The possible link to biological selection should also be explained in more detail, as this has been done in the case of education, income and reproduction to some extent on the basis of comparable data (Kong et al. 2017, Beauchamp 2016, Fieder & Huber 2002) and also in many other studies.*
+
+We have clarified the theory early on in the intro and abstract.
+TODO: Write a paragraph on biol. selection. (Not sure what is meant here?) 
+
+In terms of accepting or rejecting our theory, our paragraph in the discussion
+was:
+
+> The results here support prediction 1 but are more ambiguous for prediction 2. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large; differences that big would surely have been visible here. The theory can accommodate this non-result, if preferences for income are less curved in the US for whatever reason. But note that *any* theory with a negative relationship between education and fertility will give prediction 1. In this sense, results here are less supportive of the economic theory specifically.
+
+We don't think these results give a simple thumbs up or down to the theory,
+but we're open to suggestions to clarify what we say here. 
+
+*The division into a "black" and a "white" is necessary due to technical reasons, but further complicates the results/discussion. Presumably the results for the larger sample (I think in the case of the HRS this are the  whites) should be presented in the main text, and the results for the smaller population moved into a supplement?*
+
+TODO: yes, I think that is probably fine. 
+
+*Also, there seem to be many associations of PGS with RLRS (Figure 4), such as ADHD, diabetes, etc., which I think are interesting findings, even if of low significance, worth at least a brief discussion.*
+
+TODO: more than the below?
+
+We now discuss some health-related traits in the conclusion:
+
+> Whilst past research has focused on [cognitive] traits, we find selection 
+differentials are often of similar magnitudes for health related traits. The 
+selection differential for self-rated health is greater than those of education 
+and cognitive performance. The most significant, positively selected trait was 
+ADHD, which was also found in the UK [@hugh2022human]. Future research should 
+study the health and medical implications of natural selection, in addition to 
+their social implications. 
+
+*What is the data base for the mean number of children of people born in the same year - is pooling appropriate, as the means may vary considerably according to ethnicity?*
+
+Means do vary (TODO how much by?). But note that we analyse the ethnicities
+separately anyway, so the only effect of pooling is to scale all the selection effects
+within each ethnicity. 
+
+As a matter of scientific correctness, we think it's mostly best to think of both
+ethnic groups as one population. Interracial marriage was very low for much
+of the twentieth century, but this was a fact about laws and social norms, not
+about biology. 
+
+TODO: not sure about this. Possibly the guy is correct. The only time it matters
+is when we care about absolute effect sizes. Then, using separate means is
+like treating white people as a single population and asking how much means will
+change in the white population.  Pooling means is like treating white people as
+part of the whole US population. If we then make claims about how means for that
+whole population will change, we are effectively assuming that effect sizes are 
+the same across ethnicities, which seems unlikely.

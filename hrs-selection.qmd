@@ -7,16 +7,18 @@ abstract: |
   We investigate natural selection on polygenic scores
   in the contemporary US, using the Health and Retirement Study. Results
   partially support the economic theory of fertility as an explanation for 
-  natural selection: among both black and white respondents,
-  scores which correlate negatively (positively) with education are
-  selected for (against). Selection coefficients are larger among low-income
+  natural selection: scores which correlate negatively (positively) with
+  education are selected for (against). The theory predicts that
+  selection coefficients should be stronger among low-income, 
+  less educated, unmarried and younger parents, but these predictions are only
+  partly borne out: coefficients are larger among low-income
   and unmarried parents, but not among younger parents or those with less 
-  education. Using respondents' number of siblings and grandchildren we 
-  were able to examine selection across three generations, finding the 
-  results consistent over time. We also estimate effect sizes 
-  corrected for noise in the polygenic scores, finding selection
-  for some health traits to be similar in magnitude to cognitive traits. 
-date: "January 2024"
+  education. Using respondents' number of siblings and grandchildren, we 
+  examine selection across three generations, finding consistent results 
+  over time. We also estimate effect sizes corrected for noise in the
+  polygenic scores. Selection for some health traits is similar in magnitude
+  to that for cognitive traits. 
+date: "February 2024"
 format: 
   pdf:
     keep-tex: true
@@ -576,8 +578,8 @@ n_black <- nrow(rand |> subset(ethnicity == "black"))
 
 @hugh2022human explain patterns of natural selection on polygenic scores in the UK, using an economic theory of fertility derived from @becker1976child. The theory has two components:
 
-1.  There is a trade-off between time spent working and raising children. This leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
-2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
+1.  There is a trade-off between time spent working and raising children. This "substitution effect" leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
+2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. Because these groups value income more at the margin, the substitution effect is stronger for them. In other groups, the substitution effect is balanced by the "income effect", that children become more affordable when you get richer. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
 
 Here, we make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The HRS also provides precalculated polygenic scores [@hrspgs2020] for both black and (non-hispanic) white participants, so we can check whether the theory predicts patterns of natural selection in both these ethnicities.
 
@@ -1236,7 +1238,7 @@ n_discordant <- sum(sign(tidy_agefb_wide$Low) != sign(tidy_agefb_wide$High))
 
 Appendix @fig-x-edu shows essentially no difference in the distribution of absolute coefficient sizes between respondents with more and less education. Appendix @fig-x-inc, on the other hand, shows that coefficients appear larger among lower-income respondents. Appendix @fig-x-mar shows absolute coefficients for respondents who were married in 2010 against all other statuses. Coefficients appear larger for unmarried respondents.
 
-Appendix @fig-x-agefb splits respondents by age at first birth (median within each gender). Note that the N is lower here due to missing values. There are no large differences in absolute effect size between younger and older parents. As in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Also, in the UK Biobank sample, PGS coefficients on fertility controlling for age at first birth were negatively correlated with the uncontrolled coefficients; here, that isn't true, with coefficients remaining positively correlated.
+Appendix @fig-x-agefb splits respondents by age at first birth (median within each gender). Note that the N is lower here due to missing values. There are no large differences in absolute effect size between younger and older parents. Just as in the UK Biobank sample, correlations of PGS coefficients between younger and older parents are negative (`r cor_agefb`), and for `r n_discordant` out of `r length(pgs)` PGS, coefficients have opposite signs. However, in bootstraps, these statistics are not significantly different from 0 and `r length(pgs)/2` respectively. Also, in the UK Biobank sample, PGS coefficients on fertility controlling for age at first birth were negatively correlated with the uncontrolled coefficients; here, that isn't true, with coefficients remaining positively correlated.
 
 ```{r}
 #| label: stat-control-agefb
@@ -1341,7 +1343,7 @@ rand$variables |>
 
 ```
 
-Lastly, we would like to know natural selection's effect sizes. The bivariate correlations of PGS with RLRS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated correlations are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
+Lastly, we would like to know natural selection's effect sizes. The bivariate correlation of PGS with RLRS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated correlations are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
 
 $$
 \hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}
@@ -1708,7 +1710,7 @@ corrected_effects |>
 
 # Discussion
 
-The economic theory of fertility is driven by the trade-off between children and income. On the one hand, a higher hourly wage makes time raising children more costly (a "substitution effect"). On the other hand, higher expected income makes children more affordable (an "income effect"). Prediction 1 of the theory holds when substitution effects dominate income effects. Prediction 2 is driven by the specific form of individuals' preferences for income: when utility for income is sharply curved, the substitution effect is stronger for those who expect to earn less.
+The economic theory of fertility is driven by the trade-off between children and income. On the one hand, a higher hourly wage increases the opportunity cost of raising children (a "substitution effect"). On the other hand, higher expected income makes children more affordable (an "income effect"). Prediction 1 of the theory holds when substitution effects dominate income effects overall. Prediction 2 is driven by the specific form of individuals' preferences for income: when utility for income is sharply curved, i.e. marginal utility is high at low incomes but low at high incomes, the substitution effect is stronger for those who expect to earn less.
 
 The results here support prediction 1 but are more ambiguous for prediction 2. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large [@hugh2022human]; differences that big would surely have been visible here. The theory can accommodate this non-result, if preferences for income are less curved in the US for whatever reason. But note that *any* theory with a negative relationship between education and fertility will give prediction 1.[^4] In this sense, results here are less supportive of the economic theory specifically.
 
