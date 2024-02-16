@@ -74,11 +74,11 @@ to have insignificant individual selection effects, but we shouldn't
 ignore them in the cross-PGI analyses.
 
 When we examine relationships across scores, we indeed test for
-significance, always by bootstrapping the sample. TODO: do we always?
+significance, always by bootstrapping the sample.
 
 *The authors state that the correlation between the PGI and fertility quantifies natural selection. However, to my knowledge it is the covariance following the Robert-Price Identity: Morrissey, M. B., L. E. B. Kruuk, and Alastair J. Wilson. "The danger of applying the breeder's equation in observational studies of natural populations." Journal of evolutionary biology 23.11 (2010): 2277-2288.*
 
-TODO: Tobias, can you check the relevant para? I guess that if both PGI and RLRS are
+TE TODO: Tobias, can you check the relevant para? I guess that if both PGI and RLRS are
 normalized then the covariance is the correlation; but actually isn't the correct
 thing covariance with the not-normalized RLRS?
 
@@ -90,7 +90,7 @@ In particular we discuss PGIs for health phenotypes, as a corrective to
 the existing literature which is perhaps a bit over-focused on cognition and
 IQ.
 
-TODO: Could we look at health trends in phenotypes? I'd guess
+TE TODO: Could we look at health trends in phenotypes? I'd guess
 that health trends improve over the C20, but we could look at some specifics.
 (Depression/BMI?) One big issue here is that maybe the PGIs have confounds...
 but perhaps that's less serious for some of these phenotypes
@@ -121,12 +121,13 @@ are non-zero, but the same among both groups of parents. Then
 young-parent effects would be equally likely to be higher, or lower, than old-parent
 effects.
 
-TODO: can we figure out a test for this? 
+DHJ TODO: can we figure out a test for this? 
 
-Test: take difference between scores, times the sign of the low group score.
-Then under the null we'd expect as many + as - differences. 
+* Test: take difference between scores, times the sign of the low group score.
+  Then under the null we'd expect as many + as - differences. Do this and compare
+  to 29, always, put it in table 1.
 
-Really we should be doing the right test always! If abs size isn't enough...!
+
 
 # Reviewer 2
 
@@ -135,7 +136,7 @@ Really we should be doing the right test always! If abs size isn't enough...!
 *However, in my opinion the theoretical database, data and analysis are adequate, the problem I have is that the MS is a bit confusing. It should be made clearer why an analysis was done and what the results mean in terms of rejecting or accepting the theoretical assumptions. The possible link to biological selection should also be explained in more detail, as this has been done in the case of education, income and reproduction to some extent on the basis of comparable data (Kong et al. 2017, Beauchamp 2016, Fieder & Huber 2002) and also in many other studies.*
 
 We have clarified the theory early on in the intro and abstract.
-TODO: Write a paragraph on biol. selection. (Not sure what is meant here?) 
+TE TODO: Write a paragraph on biol. selection. (Not sure what is meant here?) 
 
 In terms of accepting or rejecting our theory, our paragraph in the discussion
 was:
@@ -143,11 +144,11 @@ was:
 > The results here support prediction 1 but are more ambiguous for prediction 2. PGS coefficients on RLRS also appear larger for low-income groups and unmarried respondents. But there is little evidence for larger coefficients among people with lower education, or younger parents. This may be due to the low sample size. But in the UK, the between-group differences were large; differences that big would surely have been visible here. The theory can accommodate this non-result, if preferences for income are less curved in the US for whatever reason. But note that *any* theory with a negative relationship between education and fertility will give prediction 1. In this sense, results here are less supportive of the economic theory specifically.
 
 We don't think these results give a simple thumbs up or down to the theory,
-but we're open to suggestions to clarify what we say here. 
+but we're open to suggestions that would help clarify what we say. 
 
 *The division into a "black" and a "white" is necessary due to technical reasons, but further complicates the results/discussion. Presumably the results for the larger sample (I think in the case of the HRS this are the  whites) should be presented in the main text, and the results for the smaller population moved into a supplement?*
 
-TODO: yes, I think that is probably fine. 
+DHJ TODO: yes, I think that is probably fine. 
 
 *Also, there seem to be many associations of PGS with RLRS (Figure 4), such as ADHD, diabetes, etc., which I think are interesting findings, even if of low significance, worth at least a brief discussion.*
 
@@ -174,10 +175,6 @@ ethnic groups as one population. Interracial marriage was very low for much
 of the twentieth century, but this was a fact about laws and social norms, not
 about biology. 
 
-TODO: not sure about this. Possibly the guy is correct. The only time it matters
-is when we care about absolute effect sizes. Then, using separate means is
-like treating white people as a single population and asking how much means will
-change in the white population.  Pooling means is like treating white people as
-part of the whole US population. If we then make claims about how means for that
-whole population will change, we are effectively assuming that effect sizes are 
-the same across ethnicities, which seems unlikely.
+DHJ/TE TODO: change it to be separate RLRS baseline for white and black; add 
+a couple of sentences discussing the implications. (Effectively examining a
+subpopulation as an imperfect proxy for the whole population.)
