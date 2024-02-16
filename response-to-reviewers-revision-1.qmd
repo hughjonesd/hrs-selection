@@ -115,18 +115,42 @@ if the income effect dominates for older parents, then the PGS will have a posit
 correlation with fertility.
 
 The test against 29 had the following logic: if all effects were really zero,
-and estimates were pure noise with mean 0, then we'd expect opposite-signed and same-signed "effects" to be equally likely; so, 29 is half of the 58 scores. However,
-this is a rather specific null. A more natural null is that selection effects
-are non-zero, but the same among both groups of parents. Then 
-young-parent effects would be equally likely to be higher, or lower, than old-parent
-effects.
+and estimates were pure noise with mean 0, then we'd expect opposite-signed and same-signed "effects" to be equally likely; so, 29 is half of the 58 scores. 
+
+However, thinking about this issue a bit more made us change our tests more
+generally. The original situation was that we tested most pairs of coefficients
+across sample subgroups by comparing their absolute size. Coefficients for
+older and younger parents had similar absolute sizes, but we noticed they were
+opposite-signed and hence ran the tests above. This is not very satisfactory: it's 
+too like special pleading, and it also suggests the original tests weren't adequate.
+
+We now improve our tests in table 1 as follows. We take the null hypothesis
+to be "selection coefficients are the same in the different subgroups, for all
+PGIs". Under the null, the true difference between selection coefficients is zero; the 
+difference in our sample (and in bootstrapped subsamples) should then not
+be significantly different from zero. Our alternative hypothesis is that
+selection coefficients are smaller among the richer/more educated/older/married
+group. That is, if the coefficient among the poorer group is $x_p$, then
+
+$x_r \times sign(x_p) < x_p \times sign(x_p)$
+
+Note that, unlike tests of absolute values, the above always holds if 
+$x_r$ and $x_p$ are opposite signed.
+
+Under the null, we'd expect the above equation to hold for just 50%
+of the scores. If it holds for significantly more than 50% of the scores
+(using bootstrapped C.I.s) then we can reject the null in favour of the 
+alternative.
+
+We also try a simpler alternative approach. Using the few PGIs with the
+largest and most precisely estimated selection effects in the whole sample,
+we estimate selection effects in different subgroups and test for a significant
+difference between them, via a simple interaction term. We report these results
+too. 
+
+TE TODO: the above^^^
 
 DHJ TODO: can we figure out a test for this? 
-
-* Test: take difference between scores, times the sign of the low group score.
-  Then under the null we'd expect as many + as - differences. Do this and compare
-  to 29, always, put it in table 1.
-
 
 
 # Reviewer 2
@@ -146,7 +170,10 @@ was:
 We don't think these results give a simple thumbs up or down to the theory,
 but we're open to suggestions that would help clarify what we say. 
 
+
 *The division into a "black" and a "white" is necessary due to technical reasons, but further complicates the results/discussion. Presumably the results for the larger sample (I think in the case of the HRS this are the  whites) should be presented in the main text, and the results for the smaller population moved into a supplement?*
+
+We're OK with this, since the black sample is really too small to say much.
 
 DHJ TODO: yes, I think that is probably fine. 
 
@@ -166,14 +193,23 @@ their social implications.
 
 *What is the data base for the mean number of children of people born in the same year - is pooling appropriate, as the means may vary considerably according to ethnicity?*
 
-Means do vary (TODO how much by?). But note that we analyse the ethnicities
-separately anyway, so the only effect of pooling is to scale all the selection effects
-within each ethnicity. 
+We thought about this, and agree that it is better to use mean number of 
+children of whites and of blacks separately for each ethnic group.
 
-As a matter of scientific correctness, we think it's mostly best to think of both
-ethnic groups as one population. Interracial marriage was very low for much
-of the twentieth century, but this was a fact about laws and social norms, not
-about biology. 
+Neither option is perfect. If we calculate RLRS separately for whites and
+blacks, we are effectively treating them as separate breeding populations.
+Black and white people had low rates of intermarriage in the 20th century but
+that is a fact of law and culture, not of biology. Conversely, if we calculate
+RLRS by taking the mean number of children across the whole population, we
+end up effectively making claims about natural selection in the US population
+as a whole, by taking the white population as representative - which it very
+likely isn't.
+
+Overall we prefer the former option, so we have now done so and added a brief
+discussion. Effectively, the white US population is a "single data point" for
+theory testing. (Even if we could pool the whole US population, that is still
+not the whole human population; this point is not much discussed in the literature.)
+
 
 DHJ/TE TODO: change it to be separate RLRS baseline for white and black; add 
 a couple of sentences discussing the implications. (Effectively examining a
