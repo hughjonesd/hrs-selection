@@ -591,9 +591,9 @@ Genotyping took place in 2006, 2008 and subsequent years. PGS were taken from th
 
 For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from both European ancestry and multiple ancestry GWAS. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants. PGS are rescaled to zero mean and unit variance. In all regressions using PGS, we control for ten within-ethnicity principal components of the DNA array data. For our purposes, this is equivalent to residualizing on principal components [@wurm2014residualizing]. Effectively, our analysis is of the residualized PGS that are widely used in practical applications. \[TODO actually we could just residualize; only the SE of the PCs is affected\]
 
-The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated pooling ethnicities, i.e. treating them as members of the same biological population. The mean number of children of people born in the same year was calculated using sampling weights.
+The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated separately by ethnicity. This is not ideal, because it treats the ethnicities as separate breeding populations. But the alternative of calculating pooled RLRS would effectively be estimating natural selection in the whole US population by treating whites as representative. We therefore focus on the white US population, with the caveat that this "one data point" may not be representative of the US population (still less the species!) The mean number of children of people born in each year was calculated using sampling weights.
 
-The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R "survey" package [@lumleysurvey2023].
+The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R *survey* package [@lumleysurvey2023].
 
 # Results
 
@@ -1155,6 +1155,7 @@ rm(rand_boot) # avoid messing with subsequent code
 #|   the coefficient was larger for the disadvantaged group, where the score
 #|   was sign-flipped to correlate negatively with education. Horizontal lines
 #|   show medians.
+
 deltas |> 
   filter(
     group != "born"
@@ -1167,14 +1168,18 @@ deltas |>
               "income_med" ~ "Income",
               "married"    ~ "Marriage"
             ),
-    outliers = ifelse(rank(delta) %in% c(1:3, 66:68), PGS, ""),
+    outliers = ifelse(delta > 0.05, nice_names[PGS], ""),
     .by = group
   ) |> 
   ggplot(aes(Group, delta, colour = Group)) + 
     geom_hline(yintercept = 0, color='grey70') + 
-    geom_point(alpha = 0.7, position = position_jitter(width = 0.1)) +
+    geom_point(alpha = 0.7, 
+               position = position_jitter(width = 0.1, seed = 12345)) +
     geom_spoke(aes(y = med_d), angle = 0,  radius = 0.3, colour = "grey40") +
     geom_spoke(aes(y = med_d), angle = pi, radius = 0.3, colour = "grey40") +
+    geom_text(aes(label = outliers), size = 2, colour = "black", 
+              position = position_jitter(width = 0.1, seed = 12345), 
+              hjust = -0.2) +
     theme_minimal() + 
     theme(
       panel.grid = element_blank(),
@@ -1217,7 +1222,7 @@ stopifnot(cor_raw_controlled >= 0)
 | Age at first birth | `r tbl$agefb`       |
 | Birth year         | `r tbl$born`        |
 
-: Estimates and bootstrap 95% confidence intervals for numbers of PGS out of `r length(pgs_white)` where the disadvantaged group had a larger selection coefficient than the advantaged group. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps.
+: Estimates and bootstrap 95% confidence intervals for numbers of PGS out of `r length(pgs_white)` where the disadvantaged group had a larger selection coefficient than the advantaged group. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps}
 
 ```{r}
 #| label: stat-pgs-over-time
@@ -1241,44 +1246,15 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 ```
 
-```{r}
-#| label: stat-x-bootstrap-birthyear
-#| cache: false
-
-n_reps_birthyear <-  199
-pgs <- pgs_white
-
-forms <- pgs |> map(\(x) reformulate(c(x, pcs), response = "raevbrn"))
-
-calc_birthyear <- function (w, data) {
-  data$w <- w
-  mods_young <- map(forms, \(x) lm(x, data, subset = rabyear > 1945,
-                                 weights = w))
-  mods_old <- map(forms, \(x) lm(x, data, subset = rabyear <= 1945,
-                                  weights = w))
-  coefs_young <- map2_dbl(mods_young, pgs, \(x, y) coef(x)[[y]])
-  coefs_old <- map2_dbl(mods_old, pgs, \(x, y) coef(x)[[y]])
-  
-  c(cor = cor(coefs_young, coefs_old))
-}
-
-rand_boot <- rand |> 
-  subset(ethnicity == "white") |> 
-  as.svrepdesign(type = "bootstrap", replicates = n_reps_birthyear)
-
-cor_agefb <- withReplicates(rand_boot, theta = calc_birthyear)
-
-```
-
-Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Looking within the sample, changes in PGS by birth year are small for both groups, and are probably mostly driven by selective mortality. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s. The last line of @tbl-x-bootstraps shows that effect sizes are larger for respondents born after 1942, but the difference is imprecisely estimated and not significant.
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
 ```{r}
 #| label: ADHD
-#| cache: false
 
 # Testing the R2 of the ADHD PGS
-rand$variables |>
-  with(cor.test(adhd_score, ADHD, use = "pairwise.complete")) -> adhd_cor
+
+adhd_cor <- cor.test(rand$variables$adhd_score, rand$variables$ADHD, 
+                     use = "pairwise.complete")
 
 ```
 
