@@ -4,6 +4,7 @@ format: docx
 editor: 
   markdown: 
     wrap: 72
+bibliography: bibliography-hrs.bib
 ---
 
 Dear Professor Medland,
@@ -13,13 +14,13 @@ to the reviewers. We respond to their points below.
 
 One major change is that I have asked Tobias Edwards to be a co-author.
 I discovered that he was working on similar topics, so we merged our
-efforts. One effect is just that we have more
-polygenic scores to analyse. The original results are not much changed,
-which is encouraging. Another is that we look in
-more detail at two extra generations, using children and grandparents of
-the respondents. We've given the paper a title which reflects that. Lastly,
-we have more careful and accurate estimates of effect sizes of "true" and/or
-"chip-wide" scores. I hope this is OK. 
+efforts. One effect is just that we have more polygenic scores to
+analyse. The original results are not much changed, which is
+encouraging. Another is that we look in more detail at two extra
+generations, using children and grandparents of the respondents. We've
+given the paper a title which reflects that. Lastly, we have more
+careful and accurate estimates of effect sizes of "true" and/or
+"chip-wide" scores. I hope this is OK.
 
 With best wishes,
 
@@ -29,8 +30,8 @@ Reviewer Comments:
 
 # Reviewer 1
 
-*Thanks for the opportunity to read the manuscript ‘Natural selection in
-the Health and Retirement Study’. This study is of great interest to the
+*Thanks for the opportunity to read the manuscript 'Natural selection in
+the Health and Retirement Study'. This study is of great interest to the
 behavior genetics and population genetics community and beyond. It
 demonstrates ongoing natural selection in a descriptive manner and
 partly confirms ideas about the trade-off between childbearing and work.
@@ -86,8 +87,8 @@ find this acceptable, it would be good to read one or two more sentences
 on why the authors think this is legitimate in this case. Second, I
 believe such a descriptive approach might be useful studying the
 patterns of natural selection, however, when it comes to the
-interactions, the author state that effects ‘Appear larger for
-unmarried’, for example. It remains unclear to me when an effect is
+interactions, the author state that effects 'Appear larger for
+unmarried', for example. It remains unclear to me when an effect is
 considered larger or not, which becomes important as the author
 differentiates between interactions which are real and those which are
 not. What are the criteria here.*
@@ -118,6 +119,33 @@ B. Kruuk, and Alastair J. Wilson. "The danger of applying the breeder's
 equation in observational studies of natural populations." Journal of
 evolutionary biology 23.11 (2010): 2277-2288.*
 
+We quantify natural selection with the regression coefficient of the PGI
+on relative lifetime reproductive success. At times in the original
+manuscript this was wrongly referred to as a correlation but has now
+been updated. The polygenic scores are standardized to have a standard
+deviation of 1. Under a univariate model, the regression coefficient is
+the covariance divided by the variance in the independent variable.
+Given the variance is 1, the regression coefficient is equal to the
+covariance and thus the two are interchangeable.
+
+The story is slightly complicated by the fact that we control for
+principal components. Thus our estimates are the partial covariance
+divided by the partial variance, the partial variance being slightly
+less than 1. Slightly biasing the effect size upwards in magnitude.
+Nevertheless, this is the standard approach used by others
+[@kong2017selection].
+
+It would be possible to residualise the polygenic score on the principal
+components, before restandardizing it have a variance of 1. That we
+might think we have something closer to the true polygenic score
+unafflicted by population stratification, with the right variance. In
+practice we've found this to only change estimates for the effect of the
+EA PGI by \~1%. The area of our analysis where the exact estimate is key
+is the error-corrected estimates. Since the estimates need to be
+adjusted for the fact that the error-corrected polygenic scores will
+covary differently with the principal components, making such a similar
+adjustment would be rather difficult.
+
 TE TODO: Tobias, can you check the relevant para? I guess that if both
 PGI and RLRS are normalized then the covariance is the correlation; but
 actually isn't the correct thing covariance with the not-normalized
@@ -141,13 +169,13 @@ health trends improve over the C20, but we could look at some specifics.
 confounds... but perhaps that's less serious for some of these
 phenotypes
 
-*Finally, the statement ’in the UK Biobank sample, correlations of PGS
+*Finally, the statement 'in the UK Biobank sample, correlations of PGS
 coefficients between younger and older parents are negative (-0.319),
 and for 42 out of 58 PGS, coefficients have opposite signs. However, in
 bootstraps, these statistics are not significantly different from 0 and
-29 respectively.’ was not entirely clear to me. What does it mean that
+29 respectively.' was not entirely clear to me. What does it mean that
 42 PGS had opposite sign effects? Does that mean for old versus younger
-parents’ coefficients were very different, even in the opposite
+parents' coefficients were very different, even in the opposite
 direction? How does this relate to the first part of the sentence that
 coefficients were negative. Also, why has this been tested against 0 and
 29?*
@@ -209,7 +237,6 @@ term. We report these results too.
 
 TE TODO: the above
 
-
 # Reviewer 2
 
 *The author sought to examine natural selection as indicated by
@@ -265,7 +292,6 @@ the smaller population moved into a supplement?*
 
 Done. Indeed, the black sample is really too small to say much.
 
-
 *Also, there seem to be many associations of PGS with RLRS (Figure 4),
 such as ADHD, diabetes, etc., which I think are interesting findings,
 even if of low significance, worth at least a brief discussion.*
@@ -285,13 +311,22 @@ We agree. We now discuss some health-related traits in the conclusion:
 the same year - is pooling appropriate, as the means may vary
 considerably according to ethnicity?*
 
-We thought about this, and now agree that it is better to use mean number of
-children of whites and of blacks separately for each ethnic group:
+We thought about this, and now agree that it is better to use mean
+number of children of whites and of blacks separately for each ethnic
+group:
 
-> "RLRS is calculated separately by ethnicity. This is not ideal, because it treats the ethnicities as separate breeding populations. But the alternative of calculating pooled RLRS would effectively be estimating natural selection in the whole US population by treating whites as representative. We therefore focus on the white US population, with the caveat that this "one data point" may not be representative of the US population (still less the species!) The mean number of children of people born in each year was calculated using sampling weights."
+> "RLRS is calculated separately by ethnicity. This is not ideal,
+> because it treats the ethnicities as separate breeding populations.
+> But the alternative of calculating pooled RLRS would effectively be
+> estimating natural selection in the whole US population by treating
+> whites as representative. We therefore focus on the white US
+> population, with the caveat that this"one data point" may not be
+> representative of the US population (still less the species!) The mean
+> number of children of people born in each year was calculated using
+> sampling weights."
 
-Effectively, the white US population is a "single data
-point" for theory testing. Note that since we don't compare the ethnicities,
-the only difference this makes is in estimating the absolute size of effects.
+Effectively, the white US population is a "single data point" for theory
+testing. Note that since we don't compare the ethnicities, the only
+difference this makes is in estimating the absolute size of effects.
 
 TE TODO: change it to be separate RLRS baseline for white and black.
