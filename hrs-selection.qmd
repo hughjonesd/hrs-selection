@@ -525,6 +525,49 @@ pgs_black <- str_replace(pgs_black, "^01", "ALZ_01")
 names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 pgs <- unique(c(pgs_white,pgs_black))
 
+##############################################################
+# Residualising then standardising PGS, with sampling weights
+##############################################################
+
+dat_eth_list <- list()
+
+for (eth in eths) {
+
+  r_eth <- rand |> subset(ethnicity == eth)
+  
+   if (eth == "white") {
+    pgs <- pgs_white
+  } else {
+    pgs <- pgs_black
+  }
+  
+for (pg in pgs) {
+
+  reg <- lm(get(pg) ~ PC1_5A + PC1_5B + PC1_5C + PC1_5D + PC1_5E +
+                    PC6_10A + PC6_10B + PC6_10C + PC6_10D +PC6_10E, weights = weight, 
+                    data = r_eth)
+
+  r_eth <- r_eth |> mutate(
+                    !!pg := get(pg) - predict(reg, r_eth),
+                    mean_weight = mean(weight, na.rm=TRUE),
+                    tot_weight = sum(weight, na.rm=TRUE),
+                    mean_res_pgs = sum(get(pg)*weight, na.rm=TRUE)/tot_weight,
+                    w.dev = weight*(get(pg) - mean_res_pgs)^2,
+                    w.var.pgs = sum(w.dev, na.rm =TRUE)/tot_weight,
+                    deman_pgs = get(pg) - mean_res_pgs,
+                    !!pg := deman_pgs/sqrt(w.var.pgs)
+  )
+}
+  
+  dat_eth_list[[eth]] <- r_eth
+  
+}
+
+rand <- dat_eth_list |> list_rbind()
+pgs <- unique(c(pgs_white,pgs_black))
+
+# SD of EA before and after this process goes from 1 to 1.01, implying that the HRS is slightly more diverse in EA than the population and that Z scoring using sampling weights doesn't really matter
+
 ```
 
 ```{r}
@@ -630,7 +673,7 @@ for (eth in eths) {
   r_parents_eth <- r_parents |> subset(ethnicity == eth)
   r_child_eth <- r_child |> subset(ethnicity == eth)
   
-  form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
+  form_pgs <- map(pgs, \(x) reformulate(c(x), response = "rlrs"))
   mod_pgs[[eth]] <- map(form_pgs, 
                                \(x) svyglm_quiet(x, r_eth))
   
@@ -639,7 +682,7 @@ for (eth in eths) {
     list_rbind() |>
     filter(term %in% pgs)
   
-  form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
+  form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x),
                                               response = "raedyrs"))
   mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
                                      \(x) svyglm_quiet(x, r_eth))
@@ -663,7 +706,7 @@ for (eth in eths) {
                            pluck("estimate.edyrs")
   
   form_pgs_sibs <- map(pgs, 
-                       \(x) reformulate(c(x, pcs), response = "r10sibs"))
+                       \(x) reformulate(c(x), response = "r10sibs"))
   mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
                                     \(x) svyglm_quiet(x, r_parents_eth))
   
@@ -677,7 +720,7 @@ for (eth in eths) {
   
   
     form_pgs_gkids <- map(pgs, 
-                       \(x) reformulate(c(x, pcs), response = "rlrs_div_h13gkid"))
+                       \(x) reformulate(c(x), response = "rlrs_div_h13gkid"))
   mod_pgs_gkids[[eth]] <- map(form_pgs_gkids,
                                     \(x) svyglm_quiet(x, r_child_eth))
   
@@ -709,7 +752,7 @@ for (eth in "white") {
   
   # the colon interaction estimates the effect separately within each group
   form_pgs_x_ed <- paste0(pgs, ":edu") |>
-    map(\(x) reformulate(c(x, "edu", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "edu"), response = "rlrs"))
   mod_pgs_x_ed[[eth]]  <-
     map(form_pgs_x_ed, 
                \(x) svyglm_quiet(x, r_eth))
@@ -719,11 +762,11 @@ for (eth in "white") {
   names(tidy_pgs_x_ed[[eth]]) <- pgs
   tidy_pgs_x_ed[[eth]] <-
     list_rbind(tidy_pgs_x_ed[[eth]], names_to = "pgs") |>
-    filter(!term %in% c("(Intercept)", "edu13-17", pcs)) |>
+    filter(!term %in% c("(Intercept)", "edu13-17")) |>
     mutate(edu = str_remove(term, ".*:"))
   
   form_pgs_x_inc <- paste0(pgs, ":income_med") |>
-    map(\(x) reformulate(c(x, "income_med", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "income_med"), response = "rlrs"))
   mod_pgs_x_inc[[eth]]  <-
     map(form_pgs_x_inc, 
                \(x) svyglm_quiet(x, r_eth))
@@ -733,11 +776,11 @@ for (eth in "white") {
   names(tidy_pgs_x_inc[[eth]]) <- pgs
   tidy_pgs_x_inc[[eth]] <-
     list_rbind(tidy_pgs_x_inc[[eth]], names_to = "pgs") |>
-    filter(!term %in% c("(Intercept)", "income_medHigh", pcs)) |>
+    filter(!term %in% c("(Intercept)", "income_medHigh")) |>
     mutate(income_med = str_remove(term, ".*:income_med"))
   
   form_pgs_x_mar <- paste0(pgs, ":married") |>
-    map(\(x) reformulate(c(x, "married", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "married"), response = "rlrs"))
   mod_pgs_x_mar[[eth]]  <-
     map(form_pgs_x_mar, 
                \(x) svyglm_quiet(x, r_eth))
@@ -747,13 +790,13 @@ for (eth in "white") {
   names(tidy_pgs_x_mar[[eth]]) <- pgs
   tidy_pgs_x_mar[[eth]] <-
     list_rbind(tidy_pgs_x_mar[[eth]], names_to = "pgs") |>
-    filter(! term %in% c("(Intercept)", "marriedMarried", pcs)) |>
+    filter(! term %in% c("(Intercept)", "marriedMarried")) |>
     mutate(
       married = str_remove(term, ".*:married")
     ) 
   
   form_pgs_x_agefb <- paste0(pgs, ":agefb") |>
-    map(\(x) reformulate(c(x, "agefb", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "agefb"), response = "rlrs"))
   mod_pgs_x_agefb[[eth]]  <-
     map(form_pgs_x_agefb, 
                \(x) svyglm_quiet(x, r_eth))
@@ -762,7 +805,7 @@ for (eth in "white") {
     map(mod_pgs_x_agefb[[eth]], broom::tidy, conf.int = TRUE) |> 
     setNames(pgs) |> 
     list_rbind(names_to = "pgs") |>
-    filter(! term %in% c("(Intercept)", "agefbHigh", pcs)) |>
+    filter(! term %in% c("(Intercept)", "agefbHigh")) |>
     mutate(
       agefb = str_remove(term, ".*:agefb")
     ) 
@@ -798,12 +841,12 @@ rand_boot <- rand |>
 
 calc_eth_cor <- function (weights, data) {
   coef_pgs_white <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "white")) |> 
         map2_dbl(pgs, \(x, y) coef(x)[[y]])
   coef_pgs_black <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "black")) |> 
         map2_dbl(pgs, \(x, y) coef(x)[[y]])
@@ -836,12 +879,12 @@ n_reps <-  599
 
 calc_cors_edu <- function (weights, data, var) {
   coef_pgs_fert <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = var)) |> 
+        map(\(x) reformulate(c(x), response = var)) |> 
         map(\(x) lm(x, data, weights = weights)) |> 
         map_dbl(\(x) coef(x)[[2]])
   
   coef_pgs_edu <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
+        map(\(x) reformulate(c(x), response = "raedyrs")) |> 
         map(\(x) lm(x, data, weights = weights)) |> 
         map_dbl(\(x) coef(x)[[2]])
   
@@ -894,12 +937,12 @@ rand_boot <- rand |>
 
 calc_eth_diff <- function (weights, data) {
   coef_pgs_white <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "white")) |> 
         map_dbl(\(x) coef(x)[[2]])
   coef_pgs_black <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "black")) |> 
         map_dbl(\(x) coef(x)[[2]])
@@ -975,8 +1018,8 @@ ggplot(tidy_pgs_joined$white, aes(estimate.edyrs, estimate.fert)) +
 n_reps_gen_cor <- 199
 pgs <- pgs_white
 
-f_resp <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
-f_sibs <- map(pgs, \(x) reformulate(c(x, pcs), response = "r10sibs"))
+f_resp <- map(pgs, \(x) reformulate(c(x), response = "raevbrn"))
+f_sibs <- map(pgs, \(x) reformulate(c(x), response = "r10sibs"))
   
 estimate_gen_cor <- function (w, data) {
   data$w <- w # avoid w getting lost by map and lm
@@ -1006,8 +1049,8 @@ ci_gen_cor <- confint(gen_cor)
 n_reps_gen_cor <-  199
 pgs <- pgs_white
 
-f_resp <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-f_gkids <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs_div_h13gkid"))
+f_resp <- map(pgs, \(x) reformulate(c(x), response = "rlrs"))
+f_gkids <- map(pgs, \(x) reformulate(c(x), response = "rlrs_div_h13gkid"))
   
 estimate_gen_cor <- function (w, data) {
   data$w <- w # avoid w getting lost by map and lm
@@ -1078,7 +1121,7 @@ calc_delta_coefs <- function (w, data, term) {
   
   # "rlrs ~ pgs:term + term + pc1 + pc2 +..."
   forms <-  map(cross_terms, 
-                \(x) reformulate(c(x, term, pcs), response = "rlrs"))
+                \(x) reformulate(c(x, term), response = "rlrs"))
   mods <- map(forms, \(x) lm(x, data, weights = w))
   cfs <- map(mods, coef)
   cfs_low <- map_dbl(cfs, \(x) x[str_detect(names(x), low_group)])
@@ -1195,7 +1238,7 @@ Figure @fig-deltas plots values of $\delta$ for each interaction term, without b
 # selection effects controlling for age at first birth
 pgs <- pgs_white
 
-form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn", pcs), 
+form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn"), 
                                                     response = "rlrs"))
 mod_pgs_control_agefb <- map(form_pgs_control_agefb,
                              \(x) svyglm_quiet(x, rand, subset = 
@@ -1260,8 +1303,8 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 # Either we justify our approach as reasonable. Or we residualise on the PCs and go with it.
 # I'm in favour of the latter, in part because explaining why the effect sizes switch sign in the error correction is awkward.
 
-reg_simple <- lm(rlrs ~ scale(EA) ,rand$variables)
-reg_pc <- lm(rlrs ~ scale(EA) + PC1_5A +PC1_5B +PC1_5C +PC1_5D +PC1_5E + 
+reg_simple <- lm(rlrs ~ EA ,rand$variables)
+reg_pc <- lm(rlrs ~ EA + PC1_5A +PC1_5B +PC1_5C +PC1_5D +PC1_5E + 
              PC6_10A +PC6_10B +PC6_10C +PC6_10D +PC6_10E ,rand$variables)
 # beta = -0.027651
 reg_res_EA <- lm(`scale(EA)` ~ PC1_5A +PC1_5B +PC1_5C +PC1_5D +PC1_5E + 
@@ -1299,7 +1342,7 @@ for (eth in "white") {
   
   # the colon interaction estimates the effect separately within each group
   form_pgs_x_ed <- paste0(pgs, "*edu") |>
-    map(\(x) reformulate(c(x, "edu", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "edu"), response = "rlrs"))
   mod_pgs_x_ed[[eth]]  <-
     map(form_pgs_x_ed, 
                \(x) svyglm_quiet(x, r_eth))
@@ -1313,7 +1356,7 @@ for (eth in "white") {
     mutate(edu = str_remove(term, ".*:"))
   
   form_pgs_x_inc <- paste0(pgs, "*income_med") |>
-    map(\(x) reformulate(c(x, "income_med", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "income_med"), response = "rlrs"))
   mod_pgs_x_inc[[eth]]  <-
     map(form_pgs_x_inc, 
                \(x) svyglm_quiet(x, r_eth))
@@ -1327,7 +1370,7 @@ for (eth in "white") {
     mutate(income_med = str_remove(term, ".*:income_med"))
   
   form_pgs_x_mar <- paste0(pgs, "*married") |>
-    map(\(x) reformulate(c(x, "married", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "married"), response = "rlrs"))
   mod_pgs_x_mar[[eth]]  <-
     map(form_pgs_x_mar, 
                \(x) svyglm_quiet(x, r_eth))
@@ -1343,7 +1386,7 @@ for (eth in "white") {
     ) 
   
   form_pgs_x_agefb <- paste0(pgs, "*agefb") |>
-    map(\(x) reformulate(c(x, "agefb", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "agefb"), response = "rlrs"))
   mod_pgs_x_agefb[[eth]]  <-
     map(form_pgs_x_agefb, 
                \(x) svyglm_quiet(x, r_eth))
@@ -1403,6 +1446,7 @@ To estimate how natural selection will contribute to changing the phenotype, we 
 rand$variables |>
   with(cor.test(adhd_score, ADHD,, use = "pairwise.complete")) -> adhd_cor
 
+
 # Writing data for pgi_correct to use
 readr::write_tsv(
   rand$variables |> filter(ethnicity == "white"),
@@ -1443,6 +1487,13 @@ correct_scores$pgs <- case_match(correct_scores$pgs,
 
 # some of the PGS have estimates rounded to zero and are thus useless
 correct_scores <- filter(correct_scores, chip_h2 > 0, R2 > 0)
+correct_scores <- correct_scores[,c("pgs",
+                                    "chip_h2",
+                                    "twin_h2",
+                                    "R2",
+                                    "Source", 
+                                    "PoldermanICF_ICD10_subchapter",
+                                    "Category")]
 
 # TE I originally used 0.28 from the TED sample. But that leads to especially absurd estimates
 # 0.15 was estiamted in the American MIDUS sample from the same paper.
@@ -1452,66 +1503,36 @@ correct_scores <- filter(correct_scores, chip_h2 > 0, R2 > 0)
 
 correct_scores$twin_h2[correct_scores$pgs == "AFB"] <- 0.15
 #correct_scores$twin_h2[correct_scores$pgs == "NEBwomen"] <- 0.28
-
+pgs_correct <- correct_scores$pgs
 
 ####################################
-# Calculating error corrected estimates
+# Running the regressions
 ####################################
 
-run_pgic_once <- function (pgs, r2, h2, h2_type) {
-  pgic_command <- glue(
-     'python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt', 
-     '--outcome "rlrs" --pgi-var {pgs}',
-     '--covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A"',
-     '"PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2 {r2} --h2 {h2}',
-     '--weights "weight"', 
-     .sep = " ")
-  system(pgic_command)
-      
-  # This removes "junk" rows in the way of our regression betas
-  system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
-  pgic_results <- readr::read_table("reg_results", col_names = TRUE,
-                                    col_types = "cdddd")
-  file.remove("reg_results")
+form_pgs_correct <- map(pgs_correct, \(x) reformulate(c(x), response = "rlrs"))
   
-  tibble(
-    trait = pgs,
-    beta  = pgic_results[[1, 4]],
-    SE    = pgic_results[[1, 5]],
-    Heritability = h2_type
-  )
-}
-
-run_pgic_data <- function (score_data, h2_column, h2_type) {
-  results <- map(1:nrow(score_data), 
-    \(i) run_pgic_once(pgs = score_data$pgs[i], 
-                       r2 = score_data$R2[i],
-                       h2 = score_data[i, h2_column, drop = TRUE],
-                       h2_type = h2_type)
-  )
+corrected_effects <-  map(form_pgs_correct,  \(x) svyglm_quiet(x, rand)) |> 
+    map(broom::tidy, conf.int = TRUE, conf.level = 0.95) |> 
+    list_rbind() |>
+    filter(term %in% pgs) |>
+    rename(pgs = term) |>
+    left_join(correct_scores) 
   
-  list_rbind(results)
-}
+corrected_effects_snp <- corrected_effects |>
+    mutate(estimate = estimate*sqrt(chip_h2/R2),
+           std.error = std.error*sqrt(chip_h2/R2),
+           conf.low = conf.low*sqrt(chip_h2/R2),
+           conf.high = conf.high*sqrt(chip_h2/R2),
+           heritability = "Chip")
 
-
-corrected_effects_snp <- run_pgic_data(correct_scores, h2_column = "chip_h2",
-                                       h2_type = "Chip")
-corrected_effects_twin <- run_pgic_data(correct_scores, h2_column = "twin_h2",
-                                        h2_type = "Twin")
+corrected_effects_twin <- corrected_effects |>
+    mutate(estimate = estimate*sqrt(twin_h2/R2),
+           std.error = std.error*sqrt(twin_h2/R2),
+           conf.low = conf.low*sqrt(twin_h2/R2),
+           conf.high = conf.high*sqrt(twin_h2/R2),
+           heritability = "Twin")
 
 corrected_effects <- rbind(corrected_effects_snp, corrected_effects_twin)
-corrected_effects$conf.low <- corrected_effects$beta - 1.96 *
-                              corrected_effects$SE
-corrected_effects$conf.high <- corrected_effects$beta + 1.96 *
-                               corrected_effects$SE
-
-unlink("pgi_correct_data.txt")
-
-corrected_effects <- left_join(corrected_effects, correct_scores,
-                               by = join_by(trait == Abr),
-                               suffix = c("", ".y"))
-  
-# The odd looking results are for traits with large missing heritability e.g. Asthma. My guess is that the rare variants act somewhat differently as DHJ as argued, meaning traits with large missing heritability show nonsense twin heritability estimates.
 
 corrected_effects$Category <-
   case_match(
@@ -1523,10 +1544,13 @@ corrected_effects$Category <-
     "Cognition and education"          ~ "Cognition"
   )
 
-# Cleaning and saving corrected effects so people can have the exact figures
-corrected_effects$TwinH2_Source <- corrected_effects$Source
-corrected_effects |> 
-  select(trait, beta, SE, Heritability, chip_h2, twin_h2, R2, 
+corrected_effects <- corrected_effects |> 
+  rename(trait = pgs,
+         TwinH2_Source = Source,
+         Heritability = heritability) 
+
+corrected_effects |>
+  select(trait, estimate, std.error, Heritability, chip_h2, twin_h2, R2, 
            TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
   readr::write_csv("Corrected_effects.csv")
 
@@ -1542,15 +1566,6 @@ corrected_effects |>
 #| fig-height: 6.79
 #| fig-width:  5.98
 
-
-# TE Note that under Fisher's fundamental theorem of natural selection, the selection
-# for fitness should be equal to it's heritability... But in HRS the
-# the AFB PGS much more strongly predicts RLRS than the NEB PGS and it's selection
-# is much lower than what the heritability of NEB should be.
-# The low R2 of NEB causes it to be removed, but the genetics for NEB 
-# could just be a little different in HRS versus other samples!
-# NEB_result <-  corrected_effects-which(corrected_effects[,"trait"]=="NEBwomen"),]
-
   
 corrected_effects |>
   # This removes ADHD due to the low power of the score. 
@@ -1559,9 +1574,9 @@ corrected_effects |>
   filter(R2 > 0.005) |> 
   mutate(
     trait = nice_names[trait],
-    trait = fct_reorder(trait, beta)
+    trait = fct_reorder(trait, estimate)
   ) |>
-  ggplot(aes(y = trait, x = beta, xmin = conf.low, xmax = conf.high,
+  ggplot(aes(y = trait, x = estimate, xmin = conf.low, xmax = conf.high,
            color = Heritability)) +
   geom_vline(xintercept = 0, color = "grey60") +
   geom_pointrange(aes(linetype = Heritability == "Twin"),
@@ -1600,8 +1615,8 @@ corrected_effects |>
 #' @examples
 boot_correct <- function (w, data, pgs, phenotype, chip_h2, twin_h2) {
   
-  fs_fert <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-  fs_phen <- map(pgs, \(x) reformulate(c(x, pcs), response = phenotype))
+  fs_fert <- map(pgs, \(x) reformulate(c(x), response = "rlrs"))
+  fs_phen <- map(pgs, \(x) reformulate(c(x), response = phenotype))
 
   ms_fert <- map(fs_fert, \(x) lm(x, data = data, weights = w))
   ms_phen <- map(fs_phen, \(x) lm(x, data = data, weights = w))
