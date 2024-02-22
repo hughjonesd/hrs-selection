@@ -132,12 +132,14 @@ standard deviation of 1. Under a univariate model, the regression
 coefficient is the covariance divided by the variance in the independent
 variable. The variance is standardized to 1, so the regression
 coefficient is equal to the covariance and thus the two are
-interchangeable.
+interchangeable. A brief discussion of the issue is now given in the
+Data section.
 
 In the previous manuscript we used a multivariate model, controlling for
 genetic principal components. We now no longer control for the PCs. Now
 we residualise the polygenic scores on the PCs before standardizing the
-polygenic scores.
+polygenic scores. This ensures our regression estimates are exactly the
+covariance between the polygenic scores and RLRS.
 
 TE TODO: Tobias, can you check the relevant para? I guess that if both
 PGI and RLRS are normalized then the covariance is the correlation; but
@@ -151,10 +153,17 @@ ongoing natural selection. It might also be very interesting to know
 more about whether those trends follow the secular trends in
 phenotypes.*
 
-We have now added a final paragraph to the Discussion section on this.
-In particular we discuss PGIs for health phenotypes, as a corrective to
-the existing literature which is perhaps a bit over-focused on cognition
-and IQ.
+We have now elaborated on the error corrected results and added a final
+paragraph to the Discussion section on this. We estimate how selection
+against intelligence will affect the phenotype, finding the result is
+not especially large. In particular we discuss PGIs for health
+phenotypes, as a corrective to the existing literature which is perhaps
+a bit over-focused on cognition and IQ.
+
+We briefly mention that genetic change in traits is often opposite to
+the phenotypic change. This highlights that environmental change is
+likely to be of greater importance for phenotypic trends then genetic
+change.
 
 TE TODO: Could we look at health trends in phenotypes? I'd guess that
 health trends improve over the C20, but we could look at some specifics.
@@ -257,8 +266,10 @@ We have added a sentence explicitly addressing our motivation in the
 introduction. We have also clarified the biological theory in the Data
 section. We provide an explanation of the intuition for our approach and
 how it is established in biology, through the Robertson-Price identity,
-to estimate the selection differential. TE TODO: Write a paragraph on
-biol. selection. (Not sure what is meant here?)
+to estimate the selection differential.
+
+TE TODO: Write a paragraph on biol. selection. (Not sure what is meant
+here?)
 
 In terms of accepting or rejecting our theory, our paragraph in the
 discussion was:
