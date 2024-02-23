@@ -7,17 +7,17 @@ abstract: |
   We investigate natural selection on polygenic scores
   in the contemporary US, using the Health and Retirement Study. Results
   partially support the economic theory of fertility as an explanation for 
+  natural selection: scores which correlate negatively (positively) with
   education are selected for (against). The theory predicts that
   selection coefficients should be stronger among low-income, 
   less educated, unmarried and younger parents, but these predictions are only
-  and unmarried parents, but not among younger parents or those with less 
-  education. Using respondents' number of siblings and grandchildren, we 
+  partly borne out: coefficients are larger among low-income
+  parents, but not among other groups. Using respondents' number of 
+  siblings and grandchildren, we 
   examine selection across three generations, finding consistent results 
   over time. We also estimate effect sizes corrected for noise in the
   polygenic scores. Selection for some health traits is similar in magnitude
   to that for cognitive traits. 
-  natural selection: scores which correlate negatively (positively) with
-  partly borne out: coefficients are larger among low-income
 date: "February 2024"
 format: 
   pdf:
@@ -1152,9 +1152,9 @@ rm(rand_boot) # avoid messing with subsequent code
 #| fig-cap: Coefficients of interaction terms ($\delta$) for effects of
 #|   polygenic scores 
 #|   on RLRS among different social groups. A positive $\delta$ means that
-#|   the coefficient was larger for the disadvantaged group, where the score
-#|   was sign-flipped to correlate negatively with education. Horizontal lines
-#|   show medians.
+#|   the selection coefficient was larger for the disadvantaged group, in 
+#|   the direction associated with less education. Horizontal lines
+#|   show median coefficients.
 
 deltas |> 
   filter(
@@ -1179,7 +1179,7 @@ deltas |>
     geom_spoke(aes(y = med_d), angle = pi, radius = 0.3, colour = "grey40") +
     geom_text(aes(label = outliers), size = 2, colour = "black", 
               position = position_jitter(width = 0.1, seed = 12345), 
-              hjust = -0.2) +
+              hjust = -0.15) +
     theme_minimal() + 
     theme(
       panel.grid = element_blank(),
@@ -1362,8 +1362,6 @@ for (eth in "white") {
 
 
 ```
-
-Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
 ```{r}
 #| label: ADHD
@@ -1708,38 +1706,6 @@ for (i in seq(nrow(correct_scores))) {
 corrected_effects <- list_rbind(corrected_effects)
 ```
 
-```{r}
-#| label: fig-true-effects-old
-#| eval: false
-#| fig-cap: |
-#|   Estimated coefficients of true polygenic scores on RLRS calculated
-#|   using estimates of chip- and twin-heritability and the most recent
-#|   polygenic score.
-
-# TODO: maybe just use the polygenic score name not the phenotype?
-# TODO: why are some result bounds negative? e.g. ADHD? Presumably
-#. because can have negative effect on RLRS?
-# TODO: check the original phenotypes from which h2 ests were derived...
-#. - is CAD the same as coronary heart disease (r10hearte)?
-# TODO: why is ANXCC not predicting anxiety?
-corrected_effects |> 
-  mutate(
-    Phenotype = nice_names[source.pgs],
-    Heritability = target.pgs
-  ) |> 
-  filter(Heritability %in% c("Chip", "Twin"), ! source.pgs %in% old_pgs) |> 
-  ggplot(aes(y = Phenotype, x = mean, xmin = conf.low, xmax = conf.high,
-             color = Heritability)) +
-    geom_vline(xintercept = 0, color = "grey60") +
-    geom_pointrange(aes(linetype = Heritability == "Twin"),
-                    position = position_dodge(0.2)) +
-    scale_linetype(guide = "none") +
-    coord_cartesian(xlim = c(- 0.3, 0.3)) +
-    labs(x = "Corrected coefficient on RLRS", y = "") +
-    theme_minimal() 
-
-```
-
 # Discussion
 
 The economic theory of fertility is driven by the trade-off between children and income. On the one hand, a higher hourly wage increases the opportunity cost of raising children (a "substitution effect"). On the other hand, higher expected income makes children more affordable (an "income effect"). Prediction 1 of the theory holds when substitution effects dominate income effects overall. Prediction 2 is driven by the specific form of individuals' preferences for income: when utility for income is sharply curved, i.e. marginal utility is high at low incomes but low at high incomes, the substitution effect is stronger for those who expect to earn less.
@@ -1748,9 +1714,11 @@ The results here support prediction 1 but are more ambiguous for prediction 2. P
 
 [^3]: See @balbo2013fertility for a broad review of fertility theories.
 
-We also examined natural selection in different groups. Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The effects of natural selection are accumulating and the underlying causes of selection may have stayed the same over time. The smaller black sample makes most tests inconclusive for this population: we can only say that the data do not reject a negative association between PGS correlations with RLRS and PGS correlations with education.
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
-Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much intelligence is changing owing to natural selection, is similar to estimates given in the prior literature. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $-0.71$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those of education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
+Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The effects of natural selection are accumulating and the underlying causes of selection may have stayed the same over time.
+
+Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is similar to previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $-0.71$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
 
 # Appendix
 
