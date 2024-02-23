@@ -1355,7 +1355,7 @@ tidy_coefs |>
     PGS = pgs,
     # gets the pretty name of the group
     Split = names(interactions)[match(interaction, interactions)],
-    Group = c("Unprivileged", "Privileged"),
+    Group = c("Disadvantaged", "Advantaged"),
     Difference = ifelse(test.p.value < 0.05, "Difference p < 0.05",
                         "Difference n.s.")
   ) |> 
@@ -1366,11 +1366,11 @@ tidy_coefs |>
                position = pos_dod, 
                shape = "circle filled", size = 2) +
     facet_wrap(vars(PGS), ncol = 1) +
-    scale_fill_manual(values = c("n.s." = "white", 
-                                 "p < 0.05" = "orange"),
+    scale_fill_manual(values = c("Difference n.s." = "white", 
+                                 "Difference p < 0.05" = "orange"),
                                  guide = guide_legend(title = NULL)) +
-    scale_color_manual(values = c("Privileged" = "steelblue4", 
-                                  "Unprivileged" = "red4")) +
+    scale_color_manual(values = c("Advantaged" = "steelblue3", 
+                                  "Disadvantaged" = "red4")) +
     theme_minimal() +
     theme(
       panel.grid.major.y = element_blank(),
