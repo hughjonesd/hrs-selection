@@ -1085,132 +1085,6 @@ We regress the respondent's (the grandparent's) PGS on RLRS2. The resulting coef
 
 Appendix @fig-gkids plots coefficients on RLRS2 versus coefficients on years of education. Correlations are significant. Standard errors are large (correlation `r cors_gkids_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$white[1]` to `r ci_boot_gkids$white[2]`). There is a positive correlation between PGS coefficients on RLRS2 and RLRS (`r gen_cor_gkids`, bootstrapped 95% C.I. `r ci_gen_cor_gkids[1,1]` to `r ci_gen_cor_gkids[1,2]`), indicating some stability in selection over time.
 
-```{r}
-#| label: Top PGS
-#| eval: true
-
-for (eth in "white") {
-  r_eth <- rand |> subset(ethnicity == eth)
-  
-  
-  if (eth == "white") {
-    pgs <- pgs_white
-  } else {
-    pgs <- pgs_black
-  }
-  
-  # the colon interaction estimates the effect separately within each group
-  form_pgs_x_ed <- paste0(pgs, "*edu") |>
-    map(\(x) reformulate(c(x, "edu"), response = "rlrs"))
-  mod_pgs_x_ed[[eth]]  <-
-    map(form_pgs_x_ed, 
-               \(x) svyglm_quiet(x, r_eth))
-  
-  tidy_pgs_x_ed[[eth]] <-
-    map(mod_pgs_x_ed[[eth]], broom::tidy, conf.int = TRUE)
-  names(tidy_pgs_x_ed[[eth]]) <- pgs
-  tidy_pgs_x_ed[[eth]] <-
-    list_rbind(tidy_pgs_x_ed[[eth]], names_to = "pgs") |>
-    filter(pgs == "EA") |>
-    mutate(edu = str_remove(term, ".*:"))
-  
-  form_pgs_x_inc <- paste0(pgs, "*income_med") |>
-    map(\(x) reformulate(c(x, "income_med"), response = "rlrs"))
-  mod_pgs_x_inc[[eth]]  <-
-    map(form_pgs_x_inc, 
-               \(x) svyglm_quiet(x, r_eth))
-  
-  tidy_pgs_x_inc[[eth]] <-
-    map(mod_pgs_x_inc[[eth]], broom::tidy, conf.int = TRUE)
-  names(tidy_pgs_x_inc[[eth]]) <- pgs
-  tidy_pgs_x_inc[[eth]] <-
-    list_rbind(tidy_pgs_x_inc[[eth]], names_to = "pgs") |>
-    filter(pgs == "EA") |>
-    mutate(income_med = str_remove(term, ".*:income_med"))
-  
-  form_pgs_x_mar <- paste0(pgs, "*married") |>
-    map(\(x) reformulate(c(x, "married"), response = "rlrs"))
-  mod_pgs_x_mar[[eth]]  <-
-    map(form_pgs_x_mar, 
-               \(x) svyglm_quiet(x, r_eth))
-  
-  tidy_pgs_x_mar[[eth]] <-
-    map(mod_pgs_x_mar[[eth]], broom::tidy, conf.int = TRUE)
-  names(tidy_pgs_x_mar[[eth]]) <- pgs
-  tidy_pgs_x_mar[[eth]] <-
-    list_rbind(tidy_pgs_x_mar[[eth]], names_to = "pgs") |>
-    filter(pgs == "EA") |>
-    mutate(
-      married = str_remove(term, ".*:married")
-    ) 
-  
-  form_pgs_x_agefb <- paste0(pgs, "*agefb") |>
-    map(\(x) reformulate(c(x, "agefb"), response = "rlrs"))
-  mod_pgs_x_agefb[[eth]]  <-
-    map(form_pgs_x_agefb, 
-               \(x) svyglm_quiet(x, r_eth))
-  
-  tidy_pgs_x_agefb[[eth]] <-
-    map(mod_pgs_x_agefb[[eth]], broom::tidy, conf.int = TRUE) |> 
-    setNames(pgs) |> 
-    list_rbind(names_to = "pgs") |>
-    filter(pgs == "EA") |>
-    mutate(
-      agefb = str_remove(term, ".*:agefb")
-    ) 
-}
-
-eff_ea_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"estimate"]
-se_ea_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"std.error"]
-p_ea_ed <-  ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
-eff_ea_int_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"estimate"]
-se_ea_int_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"std.error"]
-p_ea_int_ed <-  ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"p.value"] < 0.05, "*", "")))
-  
-eff_ea_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"estimate"]
-se_ea_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"std.error"]
-p_ea_inc <-  ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
-
-eff_ea_int_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"estimate"]
-se_ea_int_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"std.error"]
-p_ea_int_inc <-  ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"p.value"] < 0.05, "*", "")))
-
-
-
-eff_ea_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"estimate"]
-se_ea_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"std.error"]
-p_ea_mar <-  ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
-
-eff_ea_int_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"estimate"]
-se_ea_int_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"std.error"]
-p_ea_int_mar <-  ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"p.value"] < 0.05, "*", "")))
-
-
-eff_ea_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"estimate"]
-se_ea_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"std.error"]
-p_ea_agefb <-  ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
-
-eff_ea_int_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"estimate"]
-se_ea_int_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"std.error"]
-p_ea_int_agefb <-  ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"p.value"] < 0.001, "***",
-            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"p.value"] < 0.01, "**",
-            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"p.value"] < 0.05, "*", "")))
-
-```
 
 ## Differences across social groups
 
@@ -1388,7 +1262,7 @@ stopifnot(cor_raw_controlled >= 0)
 
 ```
 
-@tbl-x-bootstraps shows estimates and bootstrapped 95% confidence intervals for the number of scores where the $\delta$ term is positive. Confidence intervals exclude 34 only for income.
+@tbl-x-bootstraps shows estimates and bootstrapped 95% confidence intervals for the number of scores where the $\delta$ term is positive. Confidence intervals exclude 34 only for income and marriage.
 
 |                    | Estimate (95% C.I.) |
 |--------------------|---------------------|
@@ -1399,6 +1273,113 @@ stopifnot(cor_raw_controlled >= 0)
 | Birth year         | `r tbl$born`        |
 
 : Estimates and bootstrap 95% confidence intervals for numbers of PGS out of `r length(pgs_white)` where the disadvantaged group had a larger selection coefficient than the advantaged group. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps}
+
+To complement the above cross-PGS analysis, we focus on two scores which we a priori expect to show intergroup differences: educational attainment and ADHD. Both of these showed large differences in @hugh2022human, and have significant main effects in this data. Figure @fig-top-pgs-interactions displays coefficients of these scores on RLRS for each of the different groups. All differences are in the expected direction, with coefficients being larger for the disadvantaged group, except for low- vs- high-education and EA. However, the only significant difference is between the low- and high-income groups for the coefficient of EA, and this does not survive Bonferroni correction. [XXX or we just say "nothing survives B. C.]
+
+```{r}
+#| label: stat-top-pgs-interactions
+
+run_interaction_model <- function (pgs, interaction) {
+  # This formulation gives you separate estimates of `pgs`
+  # for each value of  `interaction`, as well as the main effect
+  # for `interaction` itself. We can then test separately
+  # for the interaction term using e.g. coeftest()
+  # I prefer doing this because the coefficients are easy to interpret
+  cross_terms <- glue("{interaction} + {interaction}:{pgs}")
+  form_interaction <- reformulate(cross_terms, response = "rlrs")
+  rand_white <- rand |> subset(ethnicity == "white")
+  mod_interaction <- svyglm_quiet(form_interaction, rand_white)
+  
+  mod_interaction
+}
+
+
+test_interaction_term <- function (mod) {
+  # All our models have two interaction terms. This finds them
+  # and tests if they are equal, using car::linearHypothesis.
+  x_terms <- matchCoefs(mod, ":") 
+  x_hypothesis <- glue("{x_terms[1]} = {x_terms[2]}")
+  car::linearHypothesis(mod, x_hypothesis)
+}
+
+
+interactions <- c(
+    Education = "edu", 
+    Income    = "income_med", 
+    Marriage  = "married",
+    AFB       = "agefb"
+  )
+
+top_pgs <- c("EA", "ADHD")
+
+
+regs_to_run <- expand_grid(pgs = top_pgs, interaction = interactions)
+
+# This creates a tibble of regression results
+tidy_regs <- regs_to_run |> 
+  # Using rowwise() like this preserves the variables pgs and interaction,
+  # but makes it easier to refer to variables in list-columns.
+  rowwise(pgs, interaction) |> 
+  mutate(
+    mod = list(run_interaction_model(pgs = pgs, interaction = interaction)),
+    tidy = list(broom::tidy(mod, conf.int = TRUE)),
+    # A test that the two interaction terms
+    # have the same coefficient:
+    test = list(test_interaction_term(mod)),
+    # P value of the test:
+    test.p.value = suppressWarnings(broom::tidy(test)) |> pull(p.value)
+  )
+
+# this gives all the coefficients for the models
+tidy_coefs <- tidy_regs |> 
+  unnest(tidy) |> 
+  ungroup()
+
+```
+
+```{r}
+#| label: fig-top-pgs-interactions
+#| fig-cap: |
+#|   Coefficients of RLRS across different groups for EA and ADHD 
+#|   polygenic scores. Lines show 95 per cent confidence intervals. Groups
+#|   are: 0-12 years education vs. 13-17 years; below vs. above median
+#|   income; all others vs. married; below vs. above median age at first
+#|   birth.
+
+pos_dod <- position_dodge(width = 0.2)
+
+tidy_coefs |> 
+  # Select only the interaction terms:
+  filter(grepl(":", term)) |> 
+  mutate(.by = c(pgs, interaction),
+    PGS = pgs,
+    # gets the pretty name of the group
+    Split = names(interactions)[match(interaction, interactions)],
+    Group = c("Unprivileged", "Privileged"),
+    Difference = ifelse(test.p.value < 0.05, "Difference p < 0.05",
+                        "Difference n.s.")
+  ) |> 
+  ggplot(aes(estimate, Split, colour = Group)) + 
+    geom_linerange(aes(xmin = conf.low, xmax = conf.high), alpha = 0.5,
+                   position = pos_dod) +
+    geom_point(aes(shape = Group, colour = Group, fill = Difference),
+               position = pos_dod, 
+               shape = "circle filled", size = 2) +
+    facet_wrap(vars(PGS), ncol = 1) +
+    scale_fill_manual(values = c("n.s." = "white", 
+                                 "p < 0.05" = "orange"),
+                                 guide = guide_legend(title = NULL)) +
+    scale_color_manual(values = c("Privileged" = "steelblue4", 
+                                  "Unprivileged" = "red4")) +
+    theme_minimal() +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.x = element_blank()
+    ) + 
+    labs(x = "Coefficient on RLRS", y = "")
+
+```
+
 
 ```{r}
 #| label: stat-pgs-over-time
