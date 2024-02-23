@@ -525,6 +525,49 @@ pgs_black <- str_replace(pgs_black, "^01", "ALZ_01")
 names(rand) <- str_replace(names(rand), "^01", "ALZ_01")
 pgs <- unique(c(pgs_white,pgs_black))
 
+##############################################################
+# Residualising then standardising PGS, with sampling weights
+##############################################################
+
+dat_eth_list <- list()
+
+for (eth in eths) {
+
+  r_eth <- rand |> subset(ethnicity == eth)
+  
+   if (eth == "white") {
+    pgs <- pgs_white
+  } else {
+    pgs <- pgs_black
+  }
+  
+for (pg in pgs) {
+
+  reg <- lm(get(pg) ~ PC1_5A + PC1_5B + PC1_5C + PC1_5D + PC1_5E +
+                    PC6_10A + PC6_10B + PC6_10C + PC6_10D +PC6_10E, weights = weight, 
+                    data = r_eth)
+
+  r_eth <- r_eth |> mutate(
+                    !!pg := get(pg) - predict(reg, r_eth),
+                    mean_weight = mean(weight, na.rm=TRUE),
+                    tot_weight = sum(weight, na.rm=TRUE),
+                    mean_res_pgs = sum(get(pg)*weight, na.rm=TRUE)/tot_weight,
+                    w.dev = weight*(get(pg) - mean_res_pgs)^2,
+                    w.var.pgs = sum(w.dev, na.rm =TRUE)/tot_weight,
+                    deman_pgs = get(pg) - mean_res_pgs,
+                    !!pg := deman_pgs/sqrt(w.var.pgs)
+  )
+}
+  
+  dat_eth_list[[eth]] <- r_eth
+  
+}
+
+rand <- dat_eth_list |> list_rbind()
+pgs <- unique(c(pgs_white,pgs_black))
+
+# SD of EA before and after this process goes from 1 to 1.01, implying that the HRS is slightly more diverse in EA than the population and that Z scoring using sampling weights doesn't really matter
+
 ```
 
 ```{r}
@@ -581,7 +624,7 @@ n_black <- nrow(rand |> subset(ethnicity == "black"))
 1.  There is a trade-off between time spent working and raising children. This "substitution effect" leads people with more human capital and higher expected wages to have fewer children. Evidence for this is that polygenic scores which correlate positively with human capital correlate negatively with number of children, i.e. they are being selected against; conversely, scores which correlate positively with human capital are being selected for.
 2.  The trade-off is sharper for low-income people, people with low human capital, and single parents. Because these groups value income more at the margin, the substitution effect is stronger for them. In other groups, the substitution effect is balanced by the "income effect", that children become more affordable when you get richer. As a result, natural selection is stronger among these groups. Evidence for this is that scores' regression coefficients on number of children are larger among people with lower income or less education, and single parents.
 
-Here, we make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. Using information on respondents' siblings and grandchildren, we can also extend the analysis to three generations of Americans. To preview our results, we confirm point 1 above, but only see partial and ambiguous support for point 2. (TODO: or can we be stronger?)
+Here, we make an independent test of the theory in the US population, using the Health and Retirement Survey [@hrsrandfam2023; @hrsrand2023]. The HRS is more representative of the population than UK Biobank, which addresses one potential weakness of the previous paper. The motivation for our study is to establish the direction and magnitude of natural selection upon a range of traits in Americans and to test whether the economic theory can explain the selection. Using information on respondents' siblings and grandchildren, we can also extend the analysis to three generations of Americans. To preview our results, we confirm point 1 above, but only see partial and ambiguous support for point 2. (TODO: or can we be stronger?)
 
 # Data
 
@@ -593,7 +636,11 @@ For the white participants, when scores from the two samples measured the same t
 
 The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated separately by ethnicity. This is not ideal, because it treats the ethnicities as separate breeding populations. But the alternative of calculating pooled RLRS would effectively be estimating natural selection in the whole US population by treating whites as representative. We therefore focus on the white US population, with the caveat that this "one data point" may not be representative of the US population (still less the species!) The mean number of children of people born in each year was calculated using sampling weights.
 
-The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Statistical tests are adjusted for clustering and stratification using the R *survey* package [@lumleysurvey2023].
+The intuition behind our modelling is very simple; if a polygenic score predicts more reproductive success then people higher in the trait will reproduce more than others causing that trait to be favored by natural selection. However the approach is also based in quantitative genetic theory and is able to yield an approximate estimate of genetic change from one generation to the next.
+
+The Robertson-Price Identity states that the change in a genetic trait between one generation and the next is equal to its covariance with relative fitness [@Price1970identity; @Robertson1966identity], assuming no mutations. In humans, infant mortality is so low today that a person's reproductive success is a very close approximation of the fitness. As such, the covariance between a polygenic score and RLRS yields the expected change in the mean polygenic score from one generation. We standardize our polygenic scores to have a mean of 0 and a standard deviation of 1. With this standardization the regression coefficient of RLRS on the PGS is equal to the covariance. Our approach to measuring natural selection is not novel, having been and detailed in the literature before [@Beauchamp2016selection; @hugh2022human; @kong2017selection].
+
+The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Standardization of polygenic scores used estimates of the population mean and variance of the polygenic score, as estimated with sampling weights. Statistical tests are adjusted for clustering and stratification using the R *survey* package [@lumleysurvey2023].
 
 # Results
 
@@ -630,7 +677,7 @@ for (eth in eths) {
   r_parents_eth <- r_parents |> subset(ethnicity == eth)
   r_child_eth <- r_child |> subset(ethnicity == eth)
   
-  form_pgs <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
+  form_pgs <- map(pgs, \(x) reformulate(c(x), response = "rlrs"))
   mod_pgs[[eth]] <- map(form_pgs, 
                                \(x) svyglm_quiet(x, r_eth))
   
@@ -639,7 +686,7 @@ for (eth in eths) {
     list_rbind() |>
     filter(term %in% pgs)
   
-  form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x, pcs),
+  form_pgs_edyrs <- map(pgs, \(x) reformulate(c(x),
                                               response = "raedyrs"))
   mod_pgs_edyrs[[eth]] <- map(form_pgs_edyrs, 
                                      \(x) svyglm_quiet(x, r_eth))
@@ -663,7 +710,7 @@ for (eth in eths) {
                            pluck("estimate.edyrs")
   
   form_pgs_sibs <- map(pgs, 
-                       \(x) reformulate(c(x, pcs), response = "r10sibs"))
+                       \(x) reformulate(c(x), response = "r10sibs"))
   mod_pgs_sibs[[eth]] <- map(form_pgs_sibs,
                                     \(x) svyglm_quiet(x, r_parents_eth))
   
@@ -677,7 +724,7 @@ for (eth in eths) {
   
   
     form_pgs_gkids <- map(pgs, 
-                       \(x) reformulate(c(x, pcs), response = "rlrs_div_h13gkid"))
+                       \(x) reformulate(c(x), response = "rlrs_div_h13gkid"))
   mod_pgs_gkids[[eth]] <- map(form_pgs_gkids,
                                     \(x) svyglm_quiet(x, r_child_eth))
   
@@ -709,7 +756,7 @@ for (eth in "white") {
   
   # the colon interaction estimates the effect separately within each group
   form_pgs_x_ed <- paste0(pgs, ":edu") |>
-    map(\(x) reformulate(c(x, "edu", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "edu"), response = "rlrs"))
   mod_pgs_x_ed[[eth]]  <-
     map(form_pgs_x_ed, 
                \(x) svyglm_quiet(x, r_eth))
@@ -719,11 +766,11 @@ for (eth in "white") {
   names(tidy_pgs_x_ed[[eth]]) <- pgs
   tidy_pgs_x_ed[[eth]] <-
     list_rbind(tidy_pgs_x_ed[[eth]], names_to = "pgs") |>
-    filter(!term %in% c("(Intercept)", "edu13-17", pcs)) |>
+    filter(!term %in% c("(Intercept)", "edu13-17")) |>
     mutate(edu = str_remove(term, ".*:"))
   
   form_pgs_x_inc <- paste0(pgs, ":income_med") |>
-    map(\(x) reformulate(c(x, "income_med", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "income_med"), response = "rlrs"))
   mod_pgs_x_inc[[eth]]  <-
     map(form_pgs_x_inc, 
                \(x) svyglm_quiet(x, r_eth))
@@ -733,11 +780,11 @@ for (eth in "white") {
   names(tidy_pgs_x_inc[[eth]]) <- pgs
   tidy_pgs_x_inc[[eth]] <-
     list_rbind(tidy_pgs_x_inc[[eth]], names_to = "pgs") |>
-    filter(!term %in% c("(Intercept)", "income_medHigh", pcs)) |>
+    filter(!term %in% c("(Intercept)", "income_medHigh")) |>
     mutate(income_med = str_remove(term, ".*:income_med"))
   
   form_pgs_x_mar <- paste0(pgs, ":married") |>
-    map(\(x) reformulate(c(x, "married", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "married"), response = "rlrs"))
   mod_pgs_x_mar[[eth]]  <-
     map(form_pgs_x_mar, 
                \(x) svyglm_quiet(x, r_eth))
@@ -747,13 +794,13 @@ for (eth in "white") {
   names(tidy_pgs_x_mar[[eth]]) <- pgs
   tidy_pgs_x_mar[[eth]] <-
     list_rbind(tidy_pgs_x_mar[[eth]], names_to = "pgs") |>
-    filter(! term %in% c("(Intercept)", "marriedMarried", pcs)) |>
+    filter(! term %in% c("(Intercept)", "marriedMarried")) |>
     mutate(
       married = str_remove(term, ".*:married")
     ) 
   
   form_pgs_x_agefb <- paste0(pgs, ":agefb") |>
-    map(\(x) reformulate(c(x, "agefb", pcs), response = "rlrs"))
+    map(\(x) reformulate(c(x, "agefb"), response = "rlrs"))
   mod_pgs_x_agefb[[eth]]  <-
     map(form_pgs_x_agefb, 
                \(x) svyglm_quiet(x, r_eth))
@@ -762,7 +809,7 @@ for (eth in "white") {
     map(mod_pgs_x_agefb[[eth]], broom::tidy, conf.int = TRUE) |> 
     setNames(pgs) |> 
     list_rbind(names_to = "pgs") |>
-    filter(! term %in% c("(Intercept)", "agefbHigh", pcs)) |>
+    filter(! term %in% c("(Intercept)", "agefbHigh")) |>
     mutate(
       agefb = str_remove(term, ".*:agefb")
     ) 
@@ -798,12 +845,12 @@ rand_boot <- rand |>
 
 calc_eth_cor <- function (weights, data) {
   coef_pgs_white <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "white")) |> 
         map2_dbl(pgs, \(x, y) coef(x)[[y]])
   coef_pgs_black <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "black")) |> 
         map2_dbl(pgs, \(x, y) coef(x)[[y]])
@@ -817,7 +864,7 @@ cor_eths_boot <- withReplicates(rand_boot, theta = calc_eth_cor)
 ci_eths <- confint(cor_eths_boot)[1,]
 ```
 
-We estimate coefficients of PGS on RLRS. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients. Standard errors are large because of the relatively low sample sizes. `r n_sig_bonf_white` scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests_white`. The scores are age at first birth, educational attainment, ADHD, and self-rated health. But we are most concerned with looking at patterns across scores rather than judging the significance of individual scores.
+We estimate coefficients of PGS on RLRS. These are not meant to identify causal effects; recall that natural selection involves correlation, not necessarily causation, between selected characteristics and fertility. Appendix @fig-rlrs shows coefficients. Standard errors are large because of the relatively low sample sizes. `r n_sig_bonf_white` scores are significant at Bonferroni-corrected p \< 0.05/`r n_tests_white`. The scores are age at first birth, educational attainment, ADHD, self-rated health and having ever smoked. But we are most concerned with looking at patterns across scores rather than judging the significance of individual scores.
 
 ```{r}
 #| label: stat-bootstraps
@@ -836,12 +883,12 @@ n_reps <-  599
 
 calc_cors_edu <- function (weights, data, var) {
   coef_pgs_fert <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = var)) |> 
+        map(\(x) reformulate(c(x), response = var)) |> 
         map(\(x) lm(x, data, weights = weights)) |> 
         map_dbl(\(x) coef(x)[[2]])
   
   coef_pgs_edu <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "raedyrs")) |> 
+        map(\(x) reformulate(c(x), response = "raedyrs")) |> 
         map(\(x) lm(x, data, weights = weights)) |> 
         map_dbl(\(x) coef(x)[[2]])
   
@@ -894,12 +941,12 @@ rand_boot <- rand |>
 
 calc_eth_diff <- function (weights, data) {
   coef_pgs_white <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "white")) |> 
         map_dbl(\(x) coef(x)[[2]])
   coef_pgs_black <- pgs |> 
-        map(\(x) reformulate(c(x, pcs), response = "rlrs")) |> 
+        map(\(x) reformulate(c(x), response = "rlrs")) |> 
         map(\(x) lm(x, data, weights = weights, 
                     subset = ethnicity == "black")) |> 
         map_dbl(\(x) coef(x)[[2]])
@@ -975,8 +1022,8 @@ ggplot(tidy_pgs_joined$white, aes(estimate.edyrs, estimate.fert)) +
 n_reps_gen_cor <- 199
 pgs <- pgs_white
 
-f_resp <- map(pgs, \(x) reformulate(c(x, pcs), response = "raevbrn"))
-f_sibs <- map(pgs, \(x) reformulate(c(x, pcs), response = "r10sibs"))
+f_resp <- map(pgs, \(x) reformulate(c(x), response = "raevbrn"))
+f_sibs <- map(pgs, \(x) reformulate(c(x), response = "r10sibs"))
   
 estimate_gen_cor <- function (w, data) {
   data$w <- w # avoid w getting lost by map and lm
@@ -1006,8 +1053,8 @@ ci_gen_cor <- confint(gen_cor)
 n_reps_gen_cor <-  199
 pgs <- pgs_white
 
-f_resp <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-f_gkids <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs_div_h13gkid"))
+f_resp <- map(pgs, \(x) reformulate(c(x), response = "rlrs"))
+f_gkids <- map(pgs, \(x) reformulate(c(x), response = "rlrs_div_h13gkid"))
   
 estimate_gen_cor <- function (w, data) {
   data$w <- w # avoid w getting lost by map and lm
@@ -1038,11 +1085,140 @@ We regress the respondent's (the grandparent's) PGS on RLRS2. The resulting coef
 
 Appendix @fig-gkids plots coefficients on RLRS2 versus coefficients on years of education. Correlations are significant. Standard errors are large (correlation `r cors_gkids_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$white[1]` to `r ci_boot_gkids$white[2]`). There is a positive correlation between PGS coefficients on RLRS2 and RLRS (`r gen_cor_gkids`, bootstrapped 95% C.I. `r ci_gen_cor_gkids[1,1]` to `r ci_gen_cor_gkids[1,2]`), indicating some stability in selection over time.
 
+```{r}
+#| label: Top PGS
+#| eval: true
+
+for (eth in "white") {
+  r_eth <- rand |> subset(ethnicity == eth)
+  
+  
+  if (eth == "white") {
+    pgs <- pgs_white
+  } else {
+    pgs <- pgs_black
+  }
+  
+  # the colon interaction estimates the effect separately within each group
+  form_pgs_x_ed <- paste0(pgs, "*edu") |>
+    map(\(x) reformulate(c(x, "edu"), response = "rlrs"))
+  mod_pgs_x_ed[[eth]]  <-
+    map(form_pgs_x_ed, 
+               \(x) svyglm_quiet(x, r_eth))
+  
+  tidy_pgs_x_ed[[eth]] <-
+    map(mod_pgs_x_ed[[eth]], broom::tidy, conf.int = TRUE)
+  names(tidy_pgs_x_ed[[eth]]) <- pgs
+  tidy_pgs_x_ed[[eth]] <-
+    list_rbind(tidy_pgs_x_ed[[eth]], names_to = "pgs") |>
+    filter(pgs == "EA") |>
+    mutate(edu = str_remove(term, ".*:"))
+  
+  form_pgs_x_inc <- paste0(pgs, "*income_med") |>
+    map(\(x) reformulate(c(x, "income_med"), response = "rlrs"))
+  mod_pgs_x_inc[[eth]]  <-
+    map(form_pgs_x_inc, 
+               \(x) svyglm_quiet(x, r_eth))
+  
+  tidy_pgs_x_inc[[eth]] <-
+    map(mod_pgs_x_inc[[eth]], broom::tidy, conf.int = TRUE)
+  names(tidy_pgs_x_inc[[eth]]) <- pgs
+  tidy_pgs_x_inc[[eth]] <-
+    list_rbind(tidy_pgs_x_inc[[eth]], names_to = "pgs") |>
+    filter(pgs == "EA") |>
+    mutate(income_med = str_remove(term, ".*:income_med"))
+  
+  form_pgs_x_mar <- paste0(pgs, "*married") |>
+    map(\(x) reformulate(c(x, "married"), response = "rlrs"))
+  mod_pgs_x_mar[[eth]]  <-
+    map(form_pgs_x_mar, 
+               \(x) svyglm_quiet(x, r_eth))
+  
+  tidy_pgs_x_mar[[eth]] <-
+    map(mod_pgs_x_mar[[eth]], broom::tidy, conf.int = TRUE)
+  names(tidy_pgs_x_mar[[eth]]) <- pgs
+  tidy_pgs_x_mar[[eth]] <-
+    list_rbind(tidy_pgs_x_mar[[eth]], names_to = "pgs") |>
+    filter(pgs == "EA") |>
+    mutate(
+      married = str_remove(term, ".*:married")
+    ) 
+  
+  form_pgs_x_agefb <- paste0(pgs, "*agefb") |>
+    map(\(x) reformulate(c(x, "agefb"), response = "rlrs"))
+  mod_pgs_x_agefb[[eth]]  <-
+    map(form_pgs_x_agefb, 
+               \(x) svyglm_quiet(x, r_eth))
+  
+  tidy_pgs_x_agefb[[eth]] <-
+    map(mod_pgs_x_agefb[[eth]], broom::tidy, conf.int = TRUE) |> 
+    setNames(pgs) |> 
+    list_rbind(names_to = "pgs") |>
+    filter(pgs == "EA") |>
+    mutate(
+      agefb = str_remove(term, ".*:agefb")
+    ) 
+}
+
+eff_ea_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"estimate"]
+se_ea_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"std.error"]
+p_ea_ed <-  ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
+eff_ea_int_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"estimate"]
+se_ea_int_ed <- tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"std.error"]
+p_ea_int_ed <-  ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_ed[["white"]][tidy_pgs_x_ed[["white"]]$term == 'EA:edu13-17' ,"p.value"] < 0.05, "*", "")))
+  
+eff_ea_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"estimate"]
+se_ea_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"std.error"]
+p_ea_inc <-  ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
+
+eff_ea_int_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"estimate"]
+se_ea_int_inc <- tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"std.error"]
+p_ea_int_inc <-  ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_inc[["white"]][tidy_pgs_x_inc[["white"]]$term == 'EA:income_medHigh' ,"p.value"] < 0.05, "*", "")))
+
+
+
+eff_ea_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"estimate"]
+se_ea_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"std.error"]
+p_ea_mar <-  ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
+
+eff_ea_int_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"estimate"]
+se_ea_int_mar <- tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"std.error"]
+p_ea_int_mar <-  ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_mar[["white"]][tidy_pgs_x_mar[["white"]]$term == 'EA:marriedMarried' ,"p.value"] < 0.05, "*", "")))
+
+
+eff_ea_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"estimate"]
+se_ea_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"std.error"]
+p_ea_agefb <-  ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA' ,"p.value"] < 0.05, "*", "")))
+
+eff_ea_int_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"estimate"]
+se_ea_int_agefb <- tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"std.error"]
+p_ea_int_agefb <-  ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"p.value"] < 0.001, "***",
+            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"p.value"] < 0.01, "**",
+            ifelse(tidy_pgs_x_agefb[["white"]][tidy_pgs_x_agefb[["white"]]$term == 'EA:agefbHigh' ,"p.value"] < 0.05, "*", "")))
+
+```
+
 ## Differences across social groups
 
 We next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. We call the low-education, low-income, unmarried or younger-AFB group the "disadvantaged group".
 
-In @hugh2022human we could simply look for significant differences between coefficients on RLRS among the groups, for each polygenic score. That will not work here because of the smaller sample size. At the same time, scores are not independent and not a sample from a population. To get round this, we test the null hypothesis that there are no differences in coefficients between social groups for any PGS, against the alternative that for some PGS, coefficients are larger for the disadvantaged group. Here, "larger" means in the direction predicted by the score's correlation with education: more positive for scores which are negatively correlated with education, and more negative for scores which are positively correlated with education. So, we run regressions of the form
+The EA polygenic score captures a key element of human capital and was trained on a GWAS sample size of one million, making it a sensible PGS with which to test the economic theory. In TABLE XXX we report the main effect of the EA polygenic score and its interaction effect on RLRS, for each of the four putative moderators. Only for the case of income is the interaction effect significant at p \< 0.05. We might wonder whether the weak effects are because of insufficient power or because any real interaction is small in the sample. In @hugh2022human the interaction effects were large, often as big as the main effects. Yet in the HRS, the point estimates of the interactions appear generally smaller, suggesting the nulls may not just be a consequence of lower power.
+
+We should attain more statistical power if we utilise information from other polygenic scores at the same time. However, some caution is necessary. Owing to the fact that the results for each PGS are not independent we should expect an elevated false positive rate. To perform, we test the null hypothesis that there are no differences in coefficients between social groups for any PGS, against the alternative that for some PGS, coefficients are larger for the disadvantaged group. Here, "larger" means in the direction predicted by the score's correlation with education: more positive for scores which are negatively correlated with education, and more negative for scores which are positively correlated with education. So, we run regressions of the form
 
 $$
 RLRS_i=\alpha+\beta PGS_i + \gamma DIS_i + \delta (PGS_i \times DIS_i) + \varepsilon_i
@@ -1078,7 +1254,7 @@ calc_delta_coefs <- function (w, data, term) {
   
   # "rlrs ~ pgs:term + term + pc1 + pc2 +..."
   forms <-  map(cross_terms, 
-                \(x) reformulate(c(x, term, pcs), response = "rlrs"))
+                \(x) reformulate(c(x, term), response = "rlrs"))
   mods <- map(forms, \(x) lm(x, data, weights = w))
   cfs <- map(mods, coef)
   cfs_low <- map_dbl(cfs, \(x) x[str_detect(names(x), low_group)])
@@ -1187,7 +1363,7 @@ deltas |>
     )
 ```
 
-Figure @fig-deltas plots values of $\delta$ for each interaction term, without bootstrapping. The majority of $\delta$s are positive for age at first birth, income and marriage but not for education. In other words, for younger parents, poorer participants, and unmarried participants, most PGS have larger effects on RLRS, but this is not true for less educated participants.
+@fig-deltas plots values of $\delta$ for each interaction term, without bootstrapping. The majority of $\delta$s are positive for age at first birth, income and marriage but not for education. In other words, for younger parents, poorer participants, and unmarried participants, most PGS have larger effects on RLRS, but this is not true for less educated participants.
 
 ```{r}
 #| label: stat-control-agefb
@@ -1195,7 +1371,7 @@ Figure @fig-deltas plots values of $\delta$ for each interaction term, without b
 # selection effects controlling for age at first birth
 pgs <- pgs_white
 
-form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn", pcs), 
+form_pgs_control_agefb <- map(pgs, \(x) reformulate(c(x, "agefbn"), 
                                                     response = "rlrs"))
 mod_pgs_control_agefb <- map(form_pgs_control_agefb,
                              \(x) svyglm_quiet(x, rand, subset = 
@@ -1246,8 +1422,9 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 ```
 
+
 ```{r}
-#| label: Top PGS
+#| label: top-PGS
 #| eval: false
 
 # Is it ok to residualise PGS on PCS vs control for them?
@@ -1363,6 +1540,7 @@ for (eth in "white") {
 
 ```
 
+
 ```{r}
 #| label: ADHD
 
@@ -1373,25 +1551,29 @@ adhd_cor <- cor.test(rand$variables$adhd_score, rand$variables$ADHD,
 
 ```
 
-Lastly, we would like to know natural selection's effect sizes. The bivariate correlation of PGS with RLRS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated correlations are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
+Lastly, we would like to know natural selection's effect sizes. The regression beta of RLRS on the PGS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated effects are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
 
 $$
-\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}
-}$$
+\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}}
+$$
 
-where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. Moving from error correction in a univariate model to a multivariate model, controlling for principal components of genetic array data, requires a slightly more complex correction, although it uses the same parameters. To do this we use the error-corrected estimator developed by @becker2021resource.
-
-SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^1]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^2].
+where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^1]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^2]. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
 
 [^1]: For age of first birth, we could not find an appropriately close trait in @polderman2015twin. For this trait we used a twin heritability of 0.15 as estimated in the Midlife in the United States (MIDUS) sample [@briley2017fertility].
 
-[^2]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we are unable to justify using the error-corrected estimator with the ADHD polygenic score.
+[^2]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not very significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we were unable to justify using the error-corrected estimator with the ADHD polygenic score.
 
-@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
+@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip may also bias the estimates. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
 
-Results from a few traits show substantial uncertainty regarding the true effect size. For asthma, when chip heritability is used, the effect is positive and significant, but negative and significant when twin heritability is used! Such a large disparity is because @becker2021resource estimate the chip heritability at 0.015 and we use a twin heritability 0f 0.55. For personality traits, chip heritability is often low (e.g. $<0.05$) but twin heritabilities are often much higher ($≈0.4$) implying substantial missing heritability. For these traits, the confidence intervals on twin heritabilities are enormous. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
+To our knowledge, this is the first time error corrected estimates of natural selection have been made for non-cognitive traits. Given the focus on cognitive traits, it is interesting to see that the point estimates for many other traits exceed point estimates for educational attainment and cognitive performance. Depressive symptoms, asthma, age of first birth and self-rated health all appear to be changing faster. This suggests the effects of natural selection are not limited to socioeconomic outcomes, but are also of medical relevance.
+
+<!--# REMINDER TO RE-ESTIMATE THE PHENOTYPIC EFFECT WHEN ALL THE CODE HAS BEEN REDONE. -->
 
 To estimate how natural selection will contribute to changing the phenotype, we can multiply the change in the mean genetic value by the correlation between genetic values and phenotypes $h$, which is the square root of heritability. For cognitive performance we have estimated a genetic change of $-0.066$ standard deviations per generation, assuming a twin heritability of $0.51$. This implies a phenotypic change of $-0.066\times0.51^\frac{1}{2}=-0.047$ standard deviations per generation, equivalent to $-0.71$ points in the units of IQ, where a standard deviation is equal to $15$ points. This calculation assumes the heritability of the trait remains constant, that the genetic correlation across time is equal to one and it ignores the environmental contributions to changes in the phenotype. Given the assumptions required for this calculation, on top of the problems involved in estimating the genetic change, it can only be considered a guess.
+
+Looking at the polygenic scores changing the most, many seem to have moved in the opposite direction to how the phenotype has changed over the latter half of the twentieth century. Education, IQ, delayed child birth, abstinence from smoking and life expectancy have all increased, contrary to how we believe the genetics have changed. The main exception is that the prevalence of mental illnesses and depression have increased in recent years in America, paralleling the polygenic scores for depression and neuroticism, nevertheless it is unclear whether these changes are real or due to be increased diagnosis and reporting. The apparent paradox of phenotypes and nautral selection moving in opposite directions suggest that environmental change across history is a much greater force than that of natural selection.
+
+<!--# Bit lazy perhaps not provide citations for phenotypic change, but the changes are close to common knowledge.-->
 
 ```{r}
 #| label: stat-pgicorrect
@@ -1400,6 +1582,7 @@ To estimate how natural selection will contribute to changing the phenotype, we 
 # Testing the R2 of the ADHD PGS
 rand$variables |>
   with(cor.test(adhd_score, ADHD,, use = "pairwise.complete")) -> adhd_cor
+
 
 # Writing data for pgi_correct to use
 readr::write_tsv(
@@ -1441,6 +1624,13 @@ correct_scores$pgs <- case_match(correct_scores$pgs,
 
 # some of the PGS have estimates rounded to zero and are thus useless
 correct_scores <- filter(correct_scores, chip_h2 > 0, R2 > 0)
+correct_scores <- correct_scores[,c("pgs",
+                                    "chip_h2",
+                                    "twin_h2",
+                                    "R2",
+                                    "Source", 
+                                    "PoldermanICF_ICD10_subchapter",
+                                    "Category")]
 
 # TE I originally used 0.28 from the TED sample. But that leads to especially absurd estimates
 # 0.15 was estiamted in the American MIDUS sample from the same paper.
@@ -1450,66 +1640,36 @@ correct_scores <- filter(correct_scores, chip_h2 > 0, R2 > 0)
 
 correct_scores$twin_h2[correct_scores$pgs == "AFB"] <- 0.15
 #correct_scores$twin_h2[correct_scores$pgs == "NEBwomen"] <- 0.28
-
+pgs_correct <- correct_scores$pgs
 
 ####################################
-# Calculating error corrected estimates
+# Running the regressions
 ####################################
 
-run_pgic_once <- function (pgs, r2, h2, h2_type) {
-  pgic_command <- glue(
-     'python3 pgi_correct/pgic.py --reg-data-file pgi_correct_data.txt', 
-     '--outcome "rlrs" --pgi-var {pgs}',
-     '--covariates "PC1_5A" "PC1_5B" "PC1_5C" "PC1_5D" "PC1_5E" "PC6_10A"',
-     '"PC6_10B" "PC6_10C" "PC6_10D" "PC6_10E" --R2 {r2} --h2 {h2}',
-     '--weights "weight"', 
-     .sep = " ")
-  system(pgic_command)
-      
-  # This removes "junk" rows in the way of our regression betas
-  system("sed '1d;2d;3d;4d;5d;6d;7d;8d;9d' pgi_correct.res > reg_results")
-  pgic_results <- readr::read_table("reg_results", col_names = TRUE,
-                                    col_types = "cdddd")
-  file.remove("reg_results")
+form_pgs_correct <- map(pgs_correct, \(x) reformulate(c(x), response = "rlrs"))
   
-  tibble(
-    trait = pgs,
-    beta  = pgic_results[[1, 4]],
-    SE    = pgic_results[[1, 5]],
-    Heritability = h2_type
-  )
-}
-
-run_pgic_data <- function (score_data, h2_column, h2_type) {
-  results <- map(1:nrow(score_data), 
-    \(i) run_pgic_once(pgs = score_data$pgs[i], 
-                       r2 = score_data$R2[i],
-                       h2 = score_data[i, h2_column, drop = TRUE],
-                       h2_type = h2_type)
-  )
+corrected_effects <-  map(form_pgs_correct,  \(x) svyglm_quiet(x, rand)) |> 
+    map(broom::tidy, conf.int = TRUE, conf.level = 0.95) |> 
+    list_rbind() |>
+    filter(term %in% pgs) |>
+    rename(pgs = term) |>
+    left_join(correct_scores, by = join_by(pgs)) 
   
-  list_rbind(results)
-}
+corrected_effects_snp <- corrected_effects |>
+    mutate(estimate = estimate*sqrt(chip_h2/R2),
+           std.error = std.error*sqrt(chip_h2/R2),
+           conf.low = conf.low*sqrt(chip_h2/R2),
+           conf.high = conf.high*sqrt(chip_h2/R2),
+           heritability = "Chip")
 
-
-corrected_effects_snp <- run_pgic_data(correct_scores, h2_column = "chip_h2",
-                                       h2_type = "Chip")
-corrected_effects_twin <- run_pgic_data(correct_scores, h2_column = "twin_h2",
-                                        h2_type = "Twin")
+corrected_effects_twin <- corrected_effects |>
+    mutate(estimate = estimate*sqrt(twin_h2/R2),
+           std.error = std.error*sqrt(twin_h2/R2),
+           conf.low = conf.low*sqrt(twin_h2/R2),
+           conf.high = conf.high*sqrt(twin_h2/R2),
+           heritability = "Twin")
 
 corrected_effects <- rbind(corrected_effects_snp, corrected_effects_twin)
-corrected_effects$conf.low <- corrected_effects$beta - 1.96 *
-                              corrected_effects$SE
-corrected_effects$conf.high <- corrected_effects$beta + 1.96 *
-                               corrected_effects$SE
-
-unlink("pgi_correct_data.txt")
-
-corrected_effects <- left_join(corrected_effects, correct_scores,
-                               by = join_by(trait == Abr),
-                               suffix = c("", ".y"))
-  
-# The odd looking results are for traits with large missing heritability e.g. Asthma. My guess is that the rare variants act somewhat differently as DHJ as argued, meaning traits with large missing heritability show nonsense twin heritability estimates.
 
 corrected_effects$Category <-
   case_match(
@@ -1521,10 +1681,13 @@ corrected_effects$Category <-
     "Cognition and education"          ~ "Cognition"
   )
 
-# Cleaning and saving corrected effects so people can have the exact figures
-corrected_effects$TwinH2_Source <- corrected_effects$Source
-corrected_effects |> 
-  select(trait, beta, SE, Heritability, chip_h2, twin_h2, R2, 
+corrected_effects <- corrected_effects |> 
+  rename(trait = pgs,
+         TwinH2_Source = Source,
+         Heritability = heritability) 
+
+corrected_effects |>
+  select(trait, estimate, std.error, Heritability, chip_h2, twin_h2, R2, 
            TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
   readr::write_csv("Corrected_effects.csv")
 
@@ -1540,15 +1703,6 @@ corrected_effects |>
 #| fig-height: 6.79
 #| fig-width:  5.98
 
-
-# TE Note that under Fisher's fundamental theorem of natural selection, the selection
-# for fitness should be equal to it's heritability... But in HRS the
-# the AFB PGS much more strongly predicts RLRS than the NEB PGS and it's selection
-# is much lower than what the heritability of NEB should be.
-# The low R2 of NEB causes it to be removed, but the genetics for NEB 
-# could just be a little different in HRS versus other samples!
-# NEB_result <-  corrected_effects-which(corrected_effects[,"trait"]=="NEBwomen"),]
-
   
 corrected_effects |>
   # This removes ADHD due to the low power of the score. 
@@ -1557,9 +1711,9 @@ corrected_effects |>
   filter(R2 > 0.005) |> 
   mutate(
     trait = nice_names[trait],
-    trait = fct_reorder(trait, beta)
+    trait = fct_reorder(trait, estimate)
   ) |>
-  ggplot(aes(y = trait, x = beta, xmin = conf.low, xmax = conf.high,
+  ggplot(aes(y = trait, x = estimate, xmin = conf.low, xmax = conf.high,
            color = Heritability)) +
   geom_vline(xintercept = 0, color = "grey60") +
   geom_pointrange(aes(linetype = Heritability == "Twin"),
@@ -1598,8 +1752,8 @@ corrected_effects |>
 #' @examples
 boot_correct <- function (w, data, pgs, phenotype, chip_h2, twin_h2) {
   
-  fs_fert <- map(pgs, \(x) reformulate(c(x, pcs), response = "rlrs"))
-  fs_phen <- map(pgs, \(x) reformulate(c(x, pcs), response = phenotype))
+  fs_fert <- map(pgs, \(x) reformulate(c(x), response = "rlrs"))
+  fs_phen <- map(pgs, \(x) reformulate(c(x), response = phenotype))
 
   ms_fert <- map(fs_fert, \(x) lm(x, data = data, weights = w))
   ms_phen <- map(fs_phen, \(x) lm(x, data = data, weights = w))
