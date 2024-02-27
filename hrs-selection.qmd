@@ -1085,7 +1085,6 @@ We regress the respondent's (the grandparent's) PGS on RLRS2. The resulting coef
 
 Appendix @fig-gkids plots coefficients on RLRS2 versus coefficients on years of education. Correlations are significant. Standard errors are large (correlation `r cors_gkids_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$white[1]` to `r ci_boot_gkids$white[2]`). There is a positive correlation between PGS coefficients on RLRS2 and RLRS (`r gen_cor_gkids`, bootstrapped 95% C.I. `r ci_gen_cor_gkids[1,1]` to `r ci_gen_cor_gkids[1,2]`), indicating some stability in selection over time.
 
-
 ## Differences across social groups
 
 We next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. We call the low-education, low-income, unmarried or younger-AFB group the "disadvantaged group".
@@ -1274,7 +1273,7 @@ stopifnot(cor_raw_controlled >= 0)
 
 : Estimates and bootstrap 95% confidence intervals for numbers of PGS out of `r length(pgs_white)` where the disadvantaged group had a larger selection coefficient than the advantaged group. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps}
 
-To complement the above cross-PGS analysis, we focus on two scores which we a priori expect to show intergroup differences: educational attainment and ADHD. Both of these showed large differences in @hugh2022human, and have significant main effects in this data. Figure @fig-top-pgs-interactions displays coefficients of these scores on RLRS for each of the different groups. All differences are in the expected direction, with coefficients being larger for the disadvantaged group, except for low- vs- high-education and EA. However, the only significant difference is between the low- and high-income groups for the coefficient of EA, and this does not survive Bonferroni correction. [XXX or we just say "nothing survives B. C.]
+To complement the above cross-PGS analysis, we focus on two scores which we a priori expect to show intergroup differences: educational attainment and ADHD. Both of these showed large differences in @hugh2022human, and have significant main effects in this data. Figure @fig-top-pgs-interactions displays coefficients of these scores on RLRS for each of the different groups. All differences are in the expected direction, with coefficients being larger for the disadvantaged group, except for low- vs- high-education and EA. However, the only significant difference is between the low- and high-income groups for the coefficient of EA, and this does not survive Bonferroni correction. \[XXX or we just say "nothing survives B. C.\]
 
 ```{r}
 #| label: stat-top-pgs-interactions
@@ -1380,7 +1379,6 @@ tidy_coefs |>
 
 ```
 
-
 ```{r}
 #| label: stat-pgs-over-time
 #| eval: false
@@ -1403,7 +1401,6 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 ```
 
-
 ```{r}
 #| label: ADHD
 
@@ -1414,45 +1411,10 @@ adhd_cor <- cor.test(rand$variables$adhd_score, rand$variables$ADHD,
 
 ```
 
-Lastly, we would like to know natural selection's effect sizes. The regression beta of RLRS on the PGS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated effects are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
-
-$$
-\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}}
-$$
-
-where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^1]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^2]. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
-
-[^1]: For age of first birth, we could not find an appropriately close trait in @polderman2015twin. For this trait we used a twin heritability of 0.15 as estimated in the Midlife in the United States (MIDUS) sample [@briley2017fertility].
-
-[^2]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not very significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we were unable to justify using the error-corrected estimator with the ADHD polygenic score.
-
-@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip may also bias the estimates. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
-
-To our knowledge, this is the first time error corrected estimates of natural selection have been made for non-cognitive traits. Given the focus on cognitive traits, it is interesting to see that the point estimates for many other traits exceed point estimates for educational attainment and cognitive performance. Depressive symptoms, asthma, age of first birth and self-rated health all appear to be changing faster. This suggests the effects of natural selection are not limited to socioeconomic outcomes, but are also of medical relevance.
-
-<!--# REMINDER TO RE-ESTIMATE THE PHENOTYPIC EFFECT WHEN ALL THE CODE HAS BEEN REDONE. -->
-
-To estimate how natural selection will contribute to changing the phenotype, we can multiply the change in the mean genetic value by the correlation between genetic values and phenotypes $h$, which is the square root of heritability. For cognitive performance we have estimated a genetic change of $-0.066$ standard deviations per generation, assuming a twin heritability of $0.51$. This implies a phenotypic change of $-0.066\times0.51^\frac{1}{2}=-0.047$ standard deviations per generation, equivalent to $-0.71$ points in the units of IQ, where a standard deviation is equal to $15$ points. This calculation assumes the heritability of the trait remains constant, that the genetic correlation across time is equal to one and it ignores the environmental contributions to changes in the phenotype. Given the assumptions required for this calculation, on top of the problems involved in estimating the genetic change, it can only be considered a guess.
-
-Looking at the polygenic scores changing the most, many seem to have moved in the opposite direction to how the phenotype has changed over the latter half of the twentieth century. Education, IQ, delayed child birth, abstinence from smoking and life expectancy have all increased, contrary to how we believe the genetics have changed. The main exception is that the prevalence of mental illnesses and depression have increased in recent years in America, paralleling the polygenic scores for depression and neuroticism, nevertheless it is unclear whether these changes are real or due to be increased diagnosis and reporting. The apparent paradox of phenotypes and nautral selection moving in opposite directions suggest that environmental change across history is a much greater force than that of natural selection.
-
-<!--# Bit lazy perhaps not provide citations for phenotypic change, but the changes are close to common knowledge.-->
-
 ```{r}
 #| label: stat-pgicorrect
 #| cache: false
 
-# Testing the R2 of the ADHD PGS
-rand$variables |>
-  with(cor.test(adhd_score, ADHD,, use = "pairwise.complete")) -> adhd_cor
-
-
-# Writing data for pgi_correct to use
-readr::write_tsv(
-  rand$variables |> filter(ethnicity == "white"),
-  "pgi_correct_data.txt",
-  quote = "none"
-)
 
 ####################################
 # Formatting parameter values to use
@@ -1523,13 +1485,15 @@ corrected_effects_snp <- corrected_effects |>
            std.error = std.error*sqrt(chip_h2/R2),
            conf.low = conf.low*sqrt(chip_h2/R2),
            conf.high = conf.high*sqrt(chip_h2/R2),
-           heritability = "Chip")
+           expected_phenotypic_change = estimate*sqrt(chip_h2),
+           heritability = "Chip") 
 
 corrected_effects_twin <- corrected_effects |>
     mutate(estimate = estimate*sqrt(twin_h2/R2),
            std.error = std.error*sqrt(twin_h2/R2),
            conf.low = conf.low*sqrt(twin_h2/R2),
            conf.high = conf.high*sqrt(twin_h2/R2),
+           expected_phenotypic_change = estimate*sqrt(twin_h2),
            heritability = "Twin")
 
 corrected_effects <- rbind(corrected_effects_snp, corrected_effects_twin)
@@ -1549,12 +1513,49 @@ corrected_effects <- corrected_effects |>
          TwinH2_Source = Source,
          Heritability = heritability) 
 
+
 corrected_effects |>
-  select(trait, estimate, std.error, Heritability, chip_h2, twin_h2, R2, 
-           TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
+  select(trait, estimate, std.error, expected_phenotypic_change, Heritability, chip_h2, 
+         twin_h2, R2, TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
   readr::write_csv("Corrected_effects.csv")
 
+
+####################################
+# Extracting Phenotypic change
+####################################
+
+IQgen_change <- corrected_effects_twin |> 
+                filter(pgs == "CP") |>
+                pull(estimate)
+
+IQphen_change_sd_units <- corrected_effects_twin |> 
+                filter(pgs == "CP") |>
+                pull(expected_phenotypic_change)
+IQphen_change <- IQphen_change_sd_units*15
+
 ```
+
+Lastly, we would like to know natural selection's effect sizes. The regression beta of RLRS on the PGS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated effects are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
+
+$$
+\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}}
+$$
+
+where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^1]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^2]. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
+
+[^1]: For age of first birth, we could not find an appropriately close trait in @polderman2015twin. For this trait we used a twin heritability of 0.15 as estimated in the Midlife in the United States (MIDUS) sample [@briley2017fertility].
+
+[^2]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not very significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we were unable to justify using the error-corrected estimator with the ADHD polygenic score.
+
+@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip may also bias the estimates. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
+
+To our knowledge, this is the first time error corrected estimates of natural selection have been made for non-cognitive traits. Given the focus on cognitive traits, it is interesting to see that the point estimates for many other traits exceed point estimates for educational attainment and cognitive performance. Depressive symptoms, asthma, age of first birth and self-rated health all appear to be changing faster. This suggests the effects of natural selection are not limited to socioeconomic outcomes, but are also of medical relevance.
+
+To estimate how natural selection will contribute to changing the phenotype, we can multiply the change in the mean genetic value by the correlation between genetic values and phenotypes $h$, which is the square root of heritability. For cognitive performance we have estimated a genetic change of $`r IQgen_change`$ standard deviations per generation, assuming a twin heritability of $0.51$. This implies a phenotypic change of $`r IQgen_change`\times0.51^\frac{1}{2}=`r IQphen_change_sd_units`$ standard deviations per generation, equivalent to $`r IQphen_change`$ points in the units of IQ, where a standard deviation is equal to $15$ points. This calculation assumes the heritability of the trait remains constant, that the genetic correlation across time is equal to one and it ignores the environmental contributions to changes in the phenotype. Given the assumptions required for this calculation, on top of the problems involved in estimating the genetic change, it can only be considered a guess.
+
+Looking at the polygenic scores changing the most, many seem to have moved in the opposite direction to how the phenotype has changed over the latter half of the twentieth century. Education, IQ, delayed child birth, abstinence from smoking and life expectancy have all increased, contrary to how we believe the genetics have changed. The main exception is that the prevalence of mental illnesses and depression have increased in recent years in America, paralleling the polygenic scores for depression and neuroticism, nevertheless it is unclear whether these changes are real or due to be increased diagnosis and reporting. The apparent paradox of phenotypes and nautral selection moving in opposite directions suggest that environmental change across history is a much greater force than that of natural selection.
+
+<!--# Bit lazy perhaps not provide citations for phenotypic change, but the changes are close to common knowledge.-->
 
 ```{r}
 #| label: fig-true-effects
@@ -1735,7 +1736,7 @@ Why does the US data show fewer differences by socio-economic status (SES) than 
 
 Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The effects of natural selection are accumulating and the underlying causes of selection may have stayed the same over time.
 
-Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is similar to previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $-0.71$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
+Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is similar to previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $`r round(IQphen_change,1)`$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
 
 # Appendix
 
