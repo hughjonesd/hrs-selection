@@ -277,8 +277,11 @@ rand_fam <- readRDS("data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
 
 # only selected columns to avoid creating suffixes when we join with
 # rand.
-# Age of oldest kid 2016; age of oldest kid 2010; grandchildren; num siblings who died
-rand_fam <- rand_fam |> select(hhid, pn, h13ageokid, h10ageokid, h13gkid, r10sbdied)
+# Age of oldest kid 2016; age of oldest kid 2010; grandchildren; num siblings who died;
+# Mother's years of education; father's years of education
+rand_fam <- rand_fam |> select(hhid, pn, h13ageokid, h10ageokid, h13gkid, r10sbdied,
+                               rameduc, rafeduc) |>
+                        mutate(paedyrs = as.numeric(rameduc + rafeduc)/2) #parent ave education
 
 # 2010 (and others) record "age started smoking"
 # rand_2010 <- haven::read_dta("data/hd10f6a_STATA/hd10f6a.dta")
@@ -587,7 +590,7 @@ rand <- rand |>
          agefb, agefbn, rabyear, born, raehsamp, raestrat, 
          parent_weight, ragender, adhd_score, neurot, r10diabe, 
          r10hearte, r10cesd, age_smoked, anxiety, r10cogtot, 
-         rlrs_div_h13gkid, child_weight, h13ageokid)
+         rlrs_div_h13gkid, child_weight, h13ageokid, paedyrs)
 
 r_parents <- svydesign(
     id = ~ raehsamp,
@@ -652,6 +655,7 @@ options("survey.lonely.psu" = "average")
 
 tidy_pgs <- mod_pgs <- list()
 tidy_pgs_ed <- mod_pgs_edyrs <- list()
+tidy_pgs_ed_parent <- mod_pgs_edyrs_parent <- list()
 tidy_pgs_sibs <- mod_pgs_sibs <- list()
 tidy_pgs_gkids <- mod_pgs_gkids <- list()
 tidy_pgs_x_ed <- mod_pgs_x_ed <- list()
@@ -661,6 +665,7 @@ tidy_pgs_x_agefb <- mod_pgs_x_agefb <- list()
 
 coefs_fert_edu <- cors_fert_edu <- tidy_pgs_joined <- list()
 cors_sibs_edu <- list()
+cors_sibs_edu_parent <- list()
 cors_gkids_edu <- list()
 tidy_fert_edu_phen <- list()
 
@@ -697,6 +702,19 @@ for (eth in eths) {
     list_rbind() |> 
     filter(term %in% pgs)
   
+  
+  form_pgs_edyrs_parent <- map(pgs, \(x) reformulate(c(x),
+                                              response = "paedyrs"))
+  mod_pgs_edyrs_parent[[eth]] <- map(form_pgs_edyrs_parent, 
+                                     \(x) svyglm_quiet(x, r_parents_eth))
+  names(mod_pgs_edyrs_parent[[eth]]) <- pgs
+  
+  tidy_pgs_ed_parent[[eth]] <- mod_pgs_edyrs_parent[[eth]] |>  
+    map(broom::tidy) |>
+    list_rbind() |> 
+    filter(term %in% pgs)
+  
+  
   tidy_pgs_joined[[eth]] <- inner_join(tidy_pgs[[eth]], tidy_pgs_ed[[eth]],
                                 by = join_by(term),
                                 unmatched = "error",
@@ -721,6 +739,10 @@ for (eth in eths) {
   
   cors_sibs_edu[[eth]] <- cor(tidy_pgs_sibs[[eth]]$estimate, 
                      tidy_pgs_ed[[eth]]$estimate)
+  
+  cors_sibs_edu_parent[[eth]] <- cor(tidy_pgs_sibs[[eth]]$estimate, 
+                     tidy_pgs_ed_parent[[eth]]$estimate)
+  
   
   
     form_pgs_gkids <- map(pgs, 
@@ -879,7 +901,7 @@ old_opts <- options(survey.multicore = TRUE)
 
 # The large n_reps is to get an accurate upper tail on the black sample, 
 # since it is close to 0:
-n_reps <-  599
+n_reps <-  30 #599
 
 calc_cors_edu <- function (weights, data, var) {
   coef_pgs_fert <- pgs |> 
@@ -889,6 +911,23 @@ calc_cors_edu <- function (weights, data, var) {
   
   coef_pgs_edu <- pgs |> 
         map(\(x) reformulate(c(x), response = "raedyrs")) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+  
+  c(
+    cor = cor(coef_pgs_edu, coef_pgs_fert),
+    coef = coef(lm(coef_pgs_fert ~ coef_pgs_edu))["coef_pgs_edu"]
+  )
+}
+
+calc_cors_edu_parent <- function (weights, data, var) {
+  coef_pgs_fert <- pgs |> 
+        map(\(x) reformulate(c(x), response = var)) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+  
+  coef_pgs_edu <- pgs |> 
+        map(\(x) reformulate(c(x), response = "paedyrs")) |> 
         map(\(x) lm(x, data, weights = weights)) |> 
         map_dbl(\(x) coef(x)[[2]])
   
@@ -919,6 +958,8 @@ for (eth in eths) {
     withReplicates(rand_boot, theta = calc_cors_edu, var = "rlrs")
   cors_sibs_edu[[eth]] <- 
     withReplicates(r_parents_boot, theta = calc_cors_edu, var = "r10sibs")
+  cors_sibs_edu_parent[[eth]] <- 
+    withReplicates(r_parents_boot, theta = calc_cors_edu_parent, var = "r10sibs")
   cors_gkids_edu[[eth]] <- 
     withReplicates(r_child_boot, theta = calc_cors_edu, var = "rlrs_div_h13gkid")
 }
@@ -968,15 +1009,19 @@ diff_eths <- withReplicates(rand_boot, theta = calc_eth_diff)
 
 ci_boot_fert <- map(cors_fert_edu, \(x) confint(x)[1,])
 ci_boot_sibs <- map(cors_sibs_edu, \(x) confint(x)[1,])
+ci_boot_sibs_parent <- map(cors_sibs_edu_parent, \(x) confint(x)[1,])
 ci_boot_gkids <- map(cors_gkids_edu, \(x) confint(x)[1,])
 
 ci_boot_fert_lm <- map(cors_fert_edu, \(x) confint(x)[2,])
 ci_boot_sibs_lm <- map(cors_sibs_edu, \(x) confint(x)[2,])
+ci_boot_sibs_lm_parent <- map(cors_sibs_edu_parent, \(x) confint(x)[2,])
 ci_boot_gkids_lm <- map(cors_gkids_edu, \(x) confint(x)[2,])
 
 if (insignificant(ci_boot_fert$white)) warning("ci_boot_fert$white insignificant")
 if (significant(ci_boot_fert$black)) warning("ci_boot_fert$black significant")
 if (insignificant(ci_boot_sibs$white)) warning("ci_boot_sibs$white insignificant")
+if (insignificant(ci_boot_sibs_parent$white)) warning("ci_boot_sibs_parent$white insignificant")
+if (insignificant(ci_boot_sibs_parent$white)) warning("ci_boot_sibs_parent$black significant")
 if (significant(ci_boot_sibs$black)) warning("ci_boot_sibs$black significant")
 if (insignificant(ci_boot_gkids$white)) warning("ci_boot_gkids$white insignificant")
 if (significant(ci_boot_gkids$black)) warning("ci_boot_gkids$black significant")
@@ -1075,7 +1120,9 @@ ci_gen_cor_gkids <- confint(gen_cor_gkids)
 
 ```
 
-We can also examine natural selection in the preceding and succeeding generations, by using reported number of siblings and grandchildren respectively. We regress PGS on respondents' number of living siblings in 2010. Data for dead siblings has too many missing values to use. We reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are significant and negative (correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`). There is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (`r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
+We can also examine natural selection in the preceding and succeeding generations, by using reported number of siblings and grandchildren respectively. We regress PGS on respondents' number of living siblings in 2010. Data for dead siblings has too many missing values to use. We reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not perfectly comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are significant and negative (correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`). There is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (`r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
+
+The HRS has data on the years of education for the parents of respondents. We recalculate the coefficients on education using the parent's PGS, in case the genetics of education and human capital changed between generations. We then correlate these coefficients with the number of siblings, finding a significant result (correlation `r cors_sibs_edu_parent$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs_parent$white[1]` to `r ci_boot_sibs_parent$white[2]`). The correlation is only slightly smaller and the confidence intervals are only slightly wider. This is surprising since parent's education is likely recorded with error and the respondent's polygenic score is only a proxy for their parents.
 
 To examine selection in the next generation, we divide the respondents' number of grandchildren by their number of children. In other words, we calculate the average number of children of the respondent's children. This indicates reproductive success in the second generation, which we call RLRS2. We removed `r gkids_unusable_white` respondents who report having grandchildren despite reporting having reported no children. In regressions we reweight respondents by the number of children they have, since more fecund grandparents account for a larger proportion of the next generation.
 
@@ -1734,7 +1781,7 @@ The results here support prediction 1 but are more ambiguous for prediction 2. P
 
 Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
-Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The effects of natural selection are accumulating and the underlying causes of selection may have stayed the same over time.
+Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The result is consistent with that of @Zietsch2014perfect, who found a perfect genetic correlation between number of children and number of grandchildren in a large sample of Swedish twins born between 1915-1929. The underlying causes of selection seem to have stayed the same over time, such that the effects of selection have accumulated.
 
 Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is similar to previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $`r round(IQphen_change,1)`$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
 
