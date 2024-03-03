@@ -11,8 +11,8 @@ abstract: |
   education are selected for (against). The theory predicts that
   selection coefficients should be stronger among low-income, 
   less educated, unmarried and younger parents, but these predictions are only
-  partly borne out: coefficients are larger among low-income
-  parents, but not among other groups. Using respondents' number of 
+  half borne out: coefficients are larger only among low-income
+  parents and unmarried parents. Using respondents' number of 
   siblings and grandchildren, we 
   examine selection across three generations, finding consistent results 
   over time. We also estimate effect sizes corrected for noise in the
@@ -151,7 +151,7 @@ nice_names <- c(
   DPWpgirep = "Drinks per Week",
   EA = "Educational Attainment",
   EVERSMOKE = "Ever Smoker",
-  EXTRA = "Exraversion",
+  EXTRA = "Extraversion",
   FAMSAT = "Satisfaction with Family",
   FINSAT = "Satisfaction with Finances",
   FRIENDSAT = "Satisfaction with Friends",
@@ -277,8 +277,11 @@ rand_fam <- readRDS("data/randhrsfam1992_2018v2_STATA/rand_fam.rds")
 
 # only selected columns to avoid creating suffixes when we join with
 # rand.
-# Age of oldest kid 2016; age of oldest kid 2010; grandchildren; num siblings who died
-rand_fam <- rand_fam |> select(hhid, pn, h13ageokid, h10ageokid, h13gkid, r10sbdied)
+# Age of oldest kid 2016; age of oldest kid 2010; grandchildren; num siblings who died;
+# Mother's years of education; father's years of education
+rand_fam <- rand_fam |> select(hhid, pn, h13ageokid, h10ageokid, h13gkid, r10sbdied,
+                               rameduc, rafeduc) |>
+                        mutate(paedyrs = as.numeric(rameduc + rafeduc)/2) #parent ave education
 
 # 2010 (and others) record "age started smoking"
 # rand_2010 <- haven::read_dta("data/hd10f6a_STATA/hd10f6a.dta")
@@ -587,7 +590,7 @@ rand <- rand |>
          agefb, agefbn, rabyear, born, raehsamp, raestrat, 
          parent_weight, ragender, adhd_score, neurot, r10diabe, 
          r10hearte, r10cesd, age_smoked, anxiety, r10cogtot, 
-         rlrs_div_h13gkid, child_weight, h13ageokid)
+         rlrs_div_h13gkid, child_weight, h13ageokid, paedyrs)
 
 r_parents <- svydesign(
     id = ~ raehsamp,
@@ -632,13 +635,13 @@ The HRS sample focuses on cohorts born between 1920 and 1960, but contains some 
 
 Genotyping took place in 2006, 2008 and subsequent years. PGS were taken from those pre-calculated by the HRS [@hrspgs2020] and those produced by the Social Science Genetic Association Consortium, as part of their Polygenic Index Repository [@becker2021resource]. Scores created by the HRS were provided for black and white participants, but Polygenic Index Repository scores were only created for white participants.
 
-For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from both European ancestry and multiple ancestry GWAS. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants. PGS are rescaled to zero mean and unit variance. In all regressions using PGS, we control for ten within-ethnicity principal components of the DNA array data. For our purposes, this is equivalent to residualizing on principal components [@wurm2014residualizing]. Effectively, our analysis is of the residualized PGS that are widely used in practical applications. \[TODO actually we could just residualize; only the SE of the PCs is affected\]
+For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from both European ancestry and multiple ancestry GWAS. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. we also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants. PGS were residualised on the first ten within-ethnicity principal components of the DNA array data, to reduce bias from population stratification. PGS were then rescaled to zero mean and unit variance.
 
 The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated separately by ethnicity. This is not ideal, because it treats the ethnicities as separate breeding populations. But the alternative of calculating pooled RLRS would effectively be estimating natural selection in the whole US population by treating whites as representative. We therefore focus on the white US population, with the caveat that this "one data point" may not be representative of the US population (still less the species!) The mean number of children of people born in each year was calculated using sampling weights.
 
-The intuition behind our modelling is very simple; if a polygenic score predicts more reproductive success then people higher in the trait will reproduce more than others causing that trait to be favored by natural selection. However the approach is also based in quantitative genetic theory and is able to yield an approximate estimate of genetic change from one generation to the next.
+The intuition behind our modelling is very simple; if a polygenic score predicts more reproductive success then people higher in the trait will reproduce more than others causing that trait to be favored by natural selection. However the approach is also based on quantitative genetic theory and is able to yield an estimate of genetic change from one generation to the next.
 
-The Robertson-Price Identity states that the change in a genetic trait between one generation and the next is equal to its covariance with relative fitness [@Price1970identity; @Robertson1966identity], assuming no mutations. In humans, infant mortality is so low today that a person's reproductive success is a very close approximation of the fitness. As such, the covariance between a polygenic score and RLRS yields the expected change in the mean polygenic score from one generation. We standardize our polygenic scores to have a mean of 0 and a standard deviation of 1. With this standardization the regression coefficient of RLRS on the PGS is equal to the covariance. Our approach to measuring natural selection is not novel, having been and detailed in the literature before [@Beauchamp2016selection; @hugh2022human; @kong2017selection].
+The Robertson-Price Identity states that the change in a genetic trait between one generation and the next is equal to its covariance with relative fitness [@Price1970identity; @Robertson1966identity], assuming no mutations. In humans, infant mortality is so low today that a person's reproductive success is a very close approximation of the fitness. As such, the covariance between a polygenic score and RLRS yields the expected change in the mean polygenic score per generation. Because the polygenic scores are standardized to have a variance of 1, the regression coefficient of RLRS on the PGS is equal to the covariance. Our approach to measuring natural selection is not novel, having been employed in the literature before [@Beauchamp2016selection; @hugh2022human; @kong2017selection].
 
 The HRS contains weights which match survey respondents to the US population. We use weights for the biomarker subsample (\*BIOWGTR in the HRS tracker file). Since half the sample enters the extended interview including biomarker data in each biannual survey, we weight individuals by either their 2010 weight or their 2012 weight. This maximizes the available sample of both black and white respondents, and should approximately match the US population of the sample cohorts between 2010 and 2012. Standardization of polygenic scores used estimates of the population mean and variance of the polygenic score, as estimated with sampling weights. Statistical tests are adjusted for clustering and stratification using the R *survey* package [@lumleysurvey2023].
 
@@ -652,6 +655,7 @@ options("survey.lonely.psu" = "average")
 
 tidy_pgs <- mod_pgs <- list()
 tidy_pgs_ed <- mod_pgs_edyrs <- list()
+tidy_pgs_ed_parent <- mod_pgs_edyrs_parent <- list()
 tidy_pgs_sibs <- mod_pgs_sibs <- list()
 tidy_pgs_gkids <- mod_pgs_gkids <- list()
 tidy_pgs_x_ed <- mod_pgs_x_ed <- list()
@@ -661,6 +665,7 @@ tidy_pgs_x_agefb <- mod_pgs_x_agefb <- list()
 
 coefs_fert_edu <- cors_fert_edu <- tidy_pgs_joined <- list()
 cors_sibs_edu <- list()
+cors_sibs_edu_parent <- list()
 cors_gkids_edu <- list()
 tidy_fert_edu_phen <- list()
 
@@ -697,6 +702,19 @@ for (eth in eths) {
     list_rbind() |> 
     filter(term %in% pgs)
   
+  
+  form_pgs_edyrs_parent <- map(pgs, \(x) reformulate(c(x),
+                                              response = "paedyrs"))
+  mod_pgs_edyrs_parent[[eth]] <- map(form_pgs_edyrs_parent, 
+                                     \(x) svyglm_quiet(x, r_parents_eth))
+  names(mod_pgs_edyrs_parent[[eth]]) <- pgs
+  
+  tidy_pgs_ed_parent[[eth]] <- mod_pgs_edyrs_parent[[eth]] |>  
+    map(broom::tidy) |>
+    list_rbind() |> 
+    filter(term %in% pgs)
+  
+  
   tidy_pgs_joined[[eth]] <- inner_join(tidy_pgs[[eth]], tidy_pgs_ed[[eth]],
                                 by = join_by(term),
                                 unmatched = "error",
@@ -721,6 +739,10 @@ for (eth in eths) {
   
   cors_sibs_edu[[eth]] <- cor(tidy_pgs_sibs[[eth]]$estimate, 
                      tidy_pgs_ed[[eth]]$estimate)
+  
+  cors_sibs_edu_parent[[eth]] <- cor(tidy_pgs_sibs[[eth]]$estimate, 
+                     tidy_pgs_ed_parent[[eth]]$estimate)
+  
   
   
     form_pgs_gkids <- map(pgs, 
@@ -897,6 +919,23 @@ calc_cors_edu <- function (weights, data, var) {
     coef = coef(lm(coef_pgs_fert ~ coef_pgs_edu))["coef_pgs_edu"]
   )
 }
+
+calc_cors_edu_parent <- function (weights, data, var) {
+  coef_pgs_fert <- pgs |> 
+        map(\(x) reformulate(c(x), response = var)) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+  
+  coef_pgs_edu <- pgs |> 
+        map(\(x) reformulate(c(x), response = "paedyrs")) |> 
+        map(\(x) lm(x, data, weights = weights)) |> 
+        map_dbl(\(x) coef(x)[[2]])
+  
+  c(
+    cor = cor(coef_pgs_edu, coef_pgs_fert),
+    coef = coef(lm(coef_pgs_fert ~ coef_pgs_edu))["coef_pgs_edu"]
+  )
+}
   
 
 cors_fert_edu <- cors_sibs_edu <- list()
@@ -919,6 +958,8 @@ for (eth in eths) {
     withReplicates(rand_boot, theta = calc_cors_edu, var = "rlrs")
   cors_sibs_edu[[eth]] <- 
     withReplicates(r_parents_boot, theta = calc_cors_edu, var = "r10sibs")
+  cors_sibs_edu_parent[[eth]] <- 
+    withReplicates(r_parents_boot, theta = calc_cors_edu_parent, var = "r10sibs")
   cors_gkids_edu[[eth]] <- 
     withReplicates(r_child_boot, theta = calc_cors_edu, var = "rlrs_div_h13gkid")
 }
@@ -968,15 +1009,19 @@ diff_eths <- withReplicates(rand_boot, theta = calc_eth_diff)
 
 ci_boot_fert <- map(cors_fert_edu, \(x) confint(x)[1,])
 ci_boot_sibs <- map(cors_sibs_edu, \(x) confint(x)[1,])
+ci_boot_sibs_parent <- map(cors_sibs_edu_parent, \(x) confint(x)[1,])
 ci_boot_gkids <- map(cors_gkids_edu, \(x) confint(x)[1,])
 
 ci_boot_fert_lm <- map(cors_fert_edu, \(x) confint(x)[2,])
 ci_boot_sibs_lm <- map(cors_sibs_edu, \(x) confint(x)[2,])
+ci_boot_sibs_lm_parent <- map(cors_sibs_edu_parent, \(x) confint(x)[2,])
 ci_boot_gkids_lm <- map(cors_gkids_edu, \(x) confint(x)[2,])
 
 if (insignificant(ci_boot_fert$white)) warning("ci_boot_fert$white insignificant")
-if (significant(ci_boot_fert$black)) warning("ci_boot_fert$black significant")
+if (insignificant(ci_boot_fert$black)) warning("ci_boot_fert$black insignificant")
 if (insignificant(ci_boot_sibs$white)) warning("ci_boot_sibs$white insignificant")
+if (insignificant(ci_boot_sibs_parent$white)) warning("ci_boot_sibs_parent$white insignificant")
+if (insignificant(ci_boot_sibs_parent$white)) warning("ci_boot_sibs_parent$black significant")
 if (significant(ci_boot_sibs$black)) warning("ci_boot_sibs$black significant")
 if (insignificant(ci_boot_gkids$white)) warning("ci_boot_gkids$white insignificant")
 if (significant(ci_boot_gkids$black)) warning("ci_boot_gkids$black significant")
@@ -989,8 +1034,8 @@ if (significant(ci_boot_gkids$black)) warning("ci_boot_gkids$black significant")
 #| fig-cap: |
 #|   Scatterplot of PGS regression coefficients on RLRS against 
 #|   coefficients on years of education. Each dot is one polygenic score.
-#|   Controls include 10 principal components of genetic array
-#|   data. Dashed lines are fitted from linear regressions.
+#|   Dashed lines are fitted from linear regressions.
+
 
 
 ggplot(tidy_pgs_joined$white, aes(estimate.edyrs, estimate.fert)) +
@@ -1075,7 +1120,9 @@ ci_gen_cor_gkids <- confint(gen_cor_gkids)
 
 ```
 
-We can also examine natural selection in the preceding and succeeding generations, by using reported number of siblings and grandchildren respectively. We regress PGS on respondents' number of living siblings in 2010. Data for dead siblings has too many missing values to use. We reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are significant and negative (correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`). There is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (`r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
+We can also examine natural selection in the preceding and succeeding generations, by using reported number of siblings and grandchildren respectively. We regress PGS on respondents' number of living siblings in 2010. Data for dead siblings has too many missing values to use. We reweight respondents by the reciprocal of their number of siblings, to account for parents of many siblings being more likely to be a parent of a respondent. Parents of no siblings cannot be included, so coefficient sizes are not perfectly comparable across the generations. Appendix @fig-siblings plots coefficients on number of siblings versus coefficients on years of education. Correlations are significant and negative (correlation `r cors_sibs_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$white[1]` to `r ci_boot_sibs$white[2]`). There is a positive and significant correlation across generations, i.e. between PGS coefficients on number of siblings and number of children (`r gen_cor`, bootstrapped 95% C.I. `r ci_gen_cor[1,1]` to `r ci_gen_cor[1,2]`).
+
+The HRS has data on the years of education for the parents of respondents. We recalculate the coefficients on education using values for the parents, in case the genetics of education and human capital changed between generations. We then correlate these new coefficients with the number of siblings, finding a positive correlation again (correlation `r cors_sibs_edu_parent$white[1]`, bootstrapped 95% C.I. `r ci_boot_sibs_parent$white[1]` to `r ci_boot_sibs_parent$white[2]`). The estimate is slightly smaller as would be expected since respondents likely recall their parent's education with some error.
 
 To examine selection in the next generation, we divide the respondents' number of grandchildren by their number of children. In other words, we calculate the average number of children of the respondent's children. This indicates reproductive success in the second generation, which we call RLRS2. We removed `r gkids_unusable_white` respondents who report having grandchildren despite reporting having reported no children. In regressions we reweight respondents by the number of children they have, since more fecund grandparents account for a larger proportion of the next generation.
 
@@ -1085,14 +1132,11 @@ We regress the respondent's (the grandparent's) PGS on RLRS2. The resulting coef
 
 Appendix @fig-gkids plots coefficients on RLRS2 versus coefficients on years of education. Correlations are significant. Standard errors are large (correlation `r cors_gkids_edu$white[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$white[1]` to `r ci_boot_gkids$white[2]`). There is a positive correlation between PGS coefficients on RLRS2 and RLRS (`r gen_cor_gkids`, bootstrapped 95% C.I. `r ci_gen_cor_gkids[1,1]` to `r ci_gen_cor_gkids[1,2]`), indicating some stability in selection over time.
 
-
 ## Differences across social groups
 
 We next test part 2 of the theory by interacting PGS with measures of education, income, marital status, and age at first birth. Education is years of education, split at 12 years. Income is respondent's mean wage income over all surveys, residualized on a full set of birth year dummies, and median-split. We call the low-education, low-income, unmarried or younger-AFB group the "disadvantaged group".
 
-The EA polygenic score captures a key element of human capital and was trained on a GWAS sample size of one million, making it a sensible PGS with which to test the economic theory. In TABLE XXX we report the main effect of the EA polygenic score and its interaction effect on RLRS, for each of the four putative moderators. Only for the case of income is the interaction effect significant at p \< 0.05. We might wonder whether the weak effects are because of insufficient power or because any real interaction is small in the sample. In @hugh2022human the interaction effects were large, often as big as the main effects. Yet in the HRS, the point estimates of the interactions appear generally smaller, suggesting the nulls may not just be a consequence of lower power.
-
-We should attain more statistical power if we utilise information from other polygenic scores at the same time. However, some caution is necessary. Owing to the fact that the results for each PGS are not independent we should expect an elevated false positive rate. To perform, we test the null hypothesis that there are no differences in coefficients between social groups for any PGS, against the alternative that for some PGS, coefficients are larger for the disadvantaged group. Here, "larger" means in the direction predicted by the score's correlation with education: more positive for scores which are negatively correlated with education, and more negative for scores which are positively correlated with education. So, we run regressions of the form
+We should attain more statistical power if we utilise information from other polygenic scores at the same time. However, some caution is necessary. Owing to the fact that the results for each PGS are not independent we should expect an elevated false positive rate. We test the null hypothesis that there are no differences in coefficients between social groups for any PGS, against the alternative that for some PGS, coefficients are larger for the disadvantaged group. Here, "larger" means in the direction predicted by the score's correlation with education: more positive for scores which are negatively correlated with education, and more negative for scores which are positively correlated with education. So, we run regressions of the form
 
 $$
 RLRS_i=\alpha+\beta PGS_i + \gamma DIS_i + \delta (PGS_i \times DIS_i) + \varepsilon_i
@@ -1224,11 +1268,11 @@ deltas |>
   ggplot(aes(Group, delta, colour = Group)) + 
     geom_hline(yintercept = 0, color='grey70') + 
     geom_point(alpha = 0.7, 
-               position = position_jitter(width = 0.1, seed = 12345)) +
+               position = position_jitter(width = 0.125, height=0.001, seed = 12346)) +
     geom_spoke(aes(y = med_d), angle = 0,  radius = 0.3, colour = "grey40") +
     geom_spoke(aes(y = med_d), angle = pi, radius = 0.3, colour = "grey40") +
     geom_text(aes(label = outliers), size = 2, colour = "black", 
-              position = position_jitter(width = 0.1, seed = 12345), 
+              position = position_jitter(width = 0.125,  height=0.001, seed = 12346), 
               hjust = -0.15) +
     theme_minimal() + 
     theme(
@@ -1274,7 +1318,7 @@ stopifnot(cor_raw_controlled >= 0)
 
 : Estimates and bootstrap 95% confidence intervals for numbers of PGS out of `r length(pgs_white)` where the disadvantaged group had a larger selection coefficient than the advantaged group. Groups are: 0-12 years education vs. 13-17 years; below vs. above median income; all others vs. married; below vs. above median age at first birth; born before vs. after 1942. `r n_reps_x_es` bootstraps. {#tbl-x-bootstraps}
 
-To complement the above cross-PGS analysis, we focus on two scores which we a priori expect to show intergroup differences: educational attainment and ADHD. Both of these showed large differences in @hugh2022human, and have significant main effects in this data. Figure @fig-top-pgs-interactions displays coefficients of these scores on RLRS for each of the different groups. All differences are in the expected direction, with coefficients being larger for the disadvantaged group, except for low- vs- high-education and EA. However, the only significant difference is between the low- and high-income groups for the coefficient of EA, and this does not survive Bonferroni correction. [XXX or we just say "nothing survives B. C.]
+To complement the above cross-PGS analysis, we focus on two scores which we a priori expect to show intergroup differences: educational attainment and ADHD. Both of these showed large differences in @hugh2022human, and have significant main effects in this data. Figure @fig-top-pgs-interactions displays coefficients of these scores on RLRS for each of the different groups. All differences are in the expected direction, with coefficients being larger for the disadvantaged group, except for low- vs- high-education and EA. However, the only significant difference is between the low- and high-income groups for the coefficient of EA, and this does not survive Bonferroni correction. \[XXX or we just say "nothing survives B. C.\]
 
 ```{r}
 #| label: stat-top-pgs-interactions
@@ -1380,7 +1424,6 @@ tidy_coefs |>
 
 ```
 
-
 ```{r}
 #| label: stat-pgs-over-time
 #| eval: false
@@ -1403,7 +1446,6 @@ ggplot(decades_ea3, aes(birth_decade, EA3, color = ethnicity,
 
 ```
 
-
 ```{r}
 #| label: ADHD
 
@@ -1414,45 +1456,10 @@ adhd_cor <- cor.test(rand$variables$adhd_score, rand$variables$ADHD,
 
 ```
 
-Lastly, we would like to know natural selection's effect sizes. The regression beta of RLRS on the PGS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated effects are biased towards zero compared to the correlation of the true PGS. They can be scaled up by
-
-$$
-\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}}
-$$
-
-where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^1]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^2]. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
-
-[^1]: For age of first birth, we could not find an appropriately close trait in @polderman2015twin. For this trait we used a twin heritability of 0.15 as estimated in the Midlife in the United States (MIDUS) sample [@briley2017fertility].
-
-[^2]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not very significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we were unable to justify using the error-corrected estimator with the ADHD polygenic score.
-
-@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip may also bias the estimates. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
-
-To our knowledge, this is the first time error corrected estimates of natural selection have been made for non-cognitive traits. Given the focus on cognitive traits, it is interesting to see that the point estimates for many other traits exceed point estimates for educational attainment and cognitive performance. Depressive symptoms, asthma, age of first birth and self-rated health all appear to be changing faster. This suggests the effects of natural selection are not limited to socioeconomic outcomes, but are also of medical relevance.
-
-<!--# REMINDER TO RE-ESTIMATE THE PHENOTYPIC EFFECT WHEN ALL THE CODE HAS BEEN REDONE. -->
-
-To estimate how natural selection will contribute to changing the phenotype, we can multiply the change in the mean genetic value by the correlation between genetic values and phenotypes $h$, which is the square root of heritability. For cognitive performance we have estimated a genetic change of $-0.066$ standard deviations per generation, assuming a twin heritability of $0.51$. This implies a phenotypic change of $-0.066\times0.51^\frac{1}{2}=-0.047$ standard deviations per generation, equivalent to $-0.71$ points in the units of IQ, where a standard deviation is equal to $15$ points. This calculation assumes the heritability of the trait remains constant, that the genetic correlation across time is equal to one and it ignores the environmental contributions to changes in the phenotype. Given the assumptions required for this calculation, on top of the problems involved in estimating the genetic change, it can only be considered a guess.
-
-Looking at the polygenic scores changing the most, many seem to have moved in the opposite direction to how the phenotype has changed over the latter half of the twentieth century. Education, IQ, delayed child birth, abstinence from smoking and life expectancy have all increased, contrary to how we believe the genetics have changed. The main exception is that the prevalence of mental illnesses and depression have increased in recent years in America, paralleling the polygenic scores for depression and neuroticism, nevertheless it is unclear whether these changes are real or due to be increased diagnosis and reporting. The apparent paradox of phenotypes and nautral selection moving in opposite directions suggest that environmental change across history is a much greater force than that of natural selection.
-
-<!--# Bit lazy perhaps not provide citations for phenotypic change, but the changes are close to common knowledge.-->
-
 ```{r}
 #| label: stat-pgicorrect
 #| cache: false
 
-# Testing the R2 of the ADHD PGS
-rand$variables |>
-  with(cor.test(adhd_score, ADHD,, use = "pairwise.complete")) -> adhd_cor
-
-
-# Writing data for pgi_correct to use
-readr::write_tsv(
-  rand$variables |> filter(ethnicity == "white"),
-  "pgi_correct_data.txt",
-  quote = "none"
-)
 
 ####################################
 # Formatting parameter values to use
@@ -1523,13 +1530,15 @@ corrected_effects_snp <- corrected_effects |>
            std.error = std.error*sqrt(chip_h2/R2),
            conf.low = conf.low*sqrt(chip_h2/R2),
            conf.high = conf.high*sqrt(chip_h2/R2),
-           heritability = "Chip")
+           expected_phenotypic_change = estimate*sqrt(chip_h2),
+           heritability = "Chip") 
 
 corrected_effects_twin <- corrected_effects |>
     mutate(estimate = estimate*sqrt(twin_h2/R2),
            std.error = std.error*sqrt(twin_h2/R2),
            conf.low = conf.low*sqrt(twin_h2/R2),
            conf.high = conf.high*sqrt(twin_h2/R2),
+           expected_phenotypic_change = estimate*sqrt(twin_h2),
            heritability = "Twin")
 
 corrected_effects <- rbind(corrected_effects_snp, corrected_effects_twin)
@@ -1549,12 +1558,47 @@ corrected_effects <- corrected_effects |>
          TwinH2_Source = Source,
          Heritability = heritability) 
 
+
 corrected_effects |>
-  select(trait, estimate, std.error, Heritability, chip_h2, twin_h2, R2, 
-           TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
+  select(trait, estimate, std.error, expected_phenotypic_change, Heritability, chip_h2, 
+         twin_h2, R2, TwinH2_Source, PoldermanICF_ICD10_subchapter, Category) |> 
   readr::write_csv("Corrected_effects.csv")
 
+
+####################################
+# Extracting Phenotypic change
+####################################
+
+IQgen_change <- corrected_effects_twin |> 
+                filter(pgs == "CP") |>
+                pull(estimate)
+
+IQphen_change_sd_units <- corrected_effects_twin |> 
+                filter(pgs == "CP") |>
+                pull(expected_phenotypic_change)
+IQphen_change <- IQphen_change_sd_units*15
+
 ```
+
+Lastly, we would like to know natural selection's effect sizes. The regression beta of RLRS on the PGS gives the change in one generation in the PGS due to natural selection, measured in standard deviations. Polygenic scores contain error, so estimated effects are biased towards zero compared to the effect of the true PGS. They can be scaled up by
+
+$$
+\hat{\beta}_{TRUE} = \hat{\beta}_{PGS}\sqrt{\frac{h^2}{R^2_{PGS}}}
+$$
+
+where $h^2$ is the heritability of the PGS target phenotype and $R^2_{PGS}$ is the coefficient of determination of the measured PGS on the target phenotype [@becker2021resource]. SNP- or chip-heritabilities and $R^2_{PGS}$ are calculated by @becker2021resource for scores in the Polygenic Index Repository. The authors use GCTA to estimate heritability. When the corresponding phenotype is not available in the HRS to estimate $R^2_{PGS}$, we use parameters estimated by the authors in the Wisconsin Longitudinal Study instead. We also perform error correction with twin heritabilites. To attain precise estimates we use heritabilities from a meta-analysis including over 14,000 twin pairs authored by @polderman2015twin[^1]. We remove polygenic scores with $R^2_{PGS} < 0.005$ to focus on PGS with adequate power. This removed the ADHD PGS which significantly predicted RLRS, even after bonferroni correction[^2]. Error-corrected effect sizes and the $R^2_{PGS}$ and $h^2$ parameters used can be found on the Github page for this paper.
+
+[^1]: For age of first birth, we could not find an appropriately close trait in @polderman2015twin. For this trait we used a twin heritability of 0.15 as estimated in the Midlife in the United States (MIDUS) sample [@briley2017fertility].
+
+[^2]: @becker2021resource estimate $R^2_{PGS}$ for ADHD using binary, yes or no, items of ADHD symptoms. These were PV001-PV018 in the 2016 core survey. They estimated an $R^2_{PGS}$ of $0.003$. When we attempt to replicate it we find an $r_{PGS}$ of `r adhd_cor$estimate`, implying an $R^2_{PGS}$ of `r adhd_cor$estimate^2`. Although this would pass our requirement of $R^2_{PGS} > 0.005$, the correlation was not very significant (p = `r adhd_cor$p.value`) and the confidence intervals were large 95% C.I. `r adhd_cor$conf.int[1]` to `r adhd_cor$conf.int[2]` owing to the fact that few respondents were given the ADHD items N = `r adhd_cor$parameter + 2`. Given the great uncertainty over the true correlation we were unable to justify using the error-corrected estimator with the ADHD polygenic score.
+
+@fig-true-effects reports the error corrected estimates of selection. As a rule of thumb, a 0.1 standard deviation change in a polygenic score over a generation might count as "serious": about 54% of the new generation will be below the parents' mean. Many upper confidence bounds meet that threshold, but lower bounds are often small or include zero. The confidence bounds capture uncertainty from sampling variation, but not other sources, including uncertainty about the true $h^2$, the true $R^2_{PGS}$, limitations of the within-sample phenotypes, noise from correlated environments, and biases in the polygenic scores such as assortative mating, population stratification, and gene-environment correlations. For twin-heritability, different relationships with fertility among variants not measured on the chip may also bias the estimates. Given all this, the estimates mostly show the limits of our knowledge, and should be treated as best guesses only.
+
+To our knowledge, this is the first time error corrected estimates of natural selection have been made for non-cognitive traits. Given the focus on cognitive traits, it is interesting to see that the point estimates for many other traits exceed point estimates for educational attainment and cognitive performance. Depressive symptoms, asthma, age of first birth and self-rated health all appear to be changing faster. This suggests the effects of natural selection are not limited to socioeconomic outcomes, but are also of medical relevance.
+
+To estimate how natural selection will contribute to changing the phenotype, we can multiply the change in the mean genetic value by the correlation between genetic values and phenotypes $h$, which is the square root of heritability. For cognitive performance we have estimated a genetic change of $`r IQgen_change`$ standard deviations per generation, assuming a twin heritability of $0.51$. This implies a phenotypic change of $`r IQgen_change`\times0.51^\frac{1}{2}=`r IQphen_change_sd_units`$ standard deviations per generation, equivalent to $`r IQphen_change`$ points in the units of IQ, where a standard deviation is equal to $15$ points. This calculation assumes the heritability of the trait remains constant, that the genetic correlation across time is equal to one and it ignores the environmental contributions to changes in the phenotype. Given the assumptions required for this calculation, on top of the problems involved in estimating the genetic change, it can only be considered a guess.
+
+Looking at the polygenic scores changing the most, many seem to have moved in the opposite direction to how the phenotype has changed over the latter half of the twentieth century. Education, IQ, delayed child birth, abstinence from smoking and life expectancy have all increased in the late twentieth century, contrary to how we believe the genetics have changed. However, the prevalence of self-reported anxiety and depressive symptoms have increased [@Witters2023; @Twenge2000], paralleling the polygenic scores for depression and neuroticism. The prevalence of asthma has also increased [@Moorman2007] in line with the polygenic score. The apparent paradox of phenotypes and nautral selection moving in opposite directions suggests that environmental change across history is a much greater force than that of natural selection.
 
 ```{r}
 #| label: fig-true-effects
@@ -1733,9 +1777,9 @@ The results here support prediction 1 but are more ambiguous for prediction 2. P
 
 Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that SES maps on to race in the US, so that ethnic differences here capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`; whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort were exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
-Across three generations of Americans, we found estimates of selection to correlate over time and that selection is consistently more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The effects of natural selection are accumulating and the underlying causes of selection may have stayed the same over time.
+Across three generations of Americans, we found estimates of selection to correlate over time and that selection is always more positive for traits that negatively predict educational attainment. Patterns of selection appear consistent across the twentieth and early twenty-first century. The result is congruent with that of @Zietsch2014perfect, who found a perfect genetic correlation between number of children and number of grandchildren in a large sample of Swedish twins born between 1915-1929. The underlying causes of selection seem to have stayed the same over time, such that the effects of selection have accumulated.
 
-Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is similar to previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $-0.71$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
+Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is slightly smaller than in previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $`r round(IQphen_change,1)`$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to their social implications. To know more, we must await more accurate polygenic scores.
 
 # Appendix
 
@@ -1747,7 +1791,7 @@ Code to reproduce this paper is available at <https://github.com/hughjonesd/hrs-
 
 ## Black respondents
 
-There are `r n_black` genotyped black survey participants. Among this sample, the relationship between polygenic scores' coefficients on RLRS and on education is negative but insignificant and imprecisely estimated (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Correlations between number of siblings and education are insignificant (correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). Similarly, coefficients on RLRS2 (children's average number of children) were insignificantly correlated with coefficients on years of education, with large standard errors (correlation `r cors_gkids_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$black[1]` to `r ci_boot_gkids$black[2]`; removed `r gkids_unusable_black` respondents reporting grandchildren but no children).
+There are `r n_black` genotyped black survey participants. Among this sample, the relationship between polygenic scores' coefficients on RLRS and on education is negative and significant (correlation `r cors_fert_edu$black[1]`, bootstrap 95% C.I. `r ci_boot_fert$black[1]` to `r ci_boot_fert$black[2]`). Correlations between number of siblings and education are insignificant (correlation `r cors_sibs_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_sibs$black[1]` to `r ci_boot_sibs$black[2]`). Similarly, coefficients on RLRS2 (children's average number of children) were insignificantly correlated with coefficients on years of education, with large standard errors (correlation `r cors_gkids_edu$black[1]`, bootstrapped 95% C.I. `r ci_boot_gkids$black[1]` to `r ci_boot_gkids$black[2]`; removed `r gkids_unusable_black` respondents reporting grandchildren but no children).
 
 ## Figures
 
@@ -1892,8 +1936,7 @@ mean_yold_kid <- sum(year_counts$yearageokid*
 ```{r}
 #| label: fig-rlrs
 #| fig-cap: |
-#|  Coefficients of PGS on RLRS, controlling for 10 principal components of
-#|  genomic array data. Lines are 95% confidence intervals.
+#|  Coefficients of PGS on RLRS. Lines are 95% confidence intervals.
 #| fig-height: 6
 
 
@@ -1925,8 +1968,7 @@ tidy_pgs$white |>
 #| label: fig-siblings
 #| fig-cap: |
 #|   Scatterplot of PGS coefficients on number of live siblings and years of
-#|   education. Controls include 10 principal components of genetic array
-#|   data. Dashed lines show linear regressions.
+#|   education. Dashed lines show linear regressions.
 
 
 
@@ -1955,8 +1997,8 @@ tidy_pgs_sibs$white |>
 #| fig-cap: |
 #|   Scatterplot of PGS coefficients on RLRS2 and years of
 #|   education. RLRS2 is the reproductive success of respondent's offspring
-#|   relative to the success of other offspring. Controls include 10 principal
-#|   components of genetic array data. Dashed lines show linear regressions.
+#|   relative to the success of other offspring. Dashed lines show linear regressions.
+
 
 tidy_pgs_gkids$white |> 
   inner_join(tidy_pgs_ed$white, 

@@ -63,17 +63,6 @@ As stated by the authors, this study is not a causal study but one of
 correlations. The consequence of a correlation (natural selection)
 should be independent of its causes.*
 
-Note that controlling for principal components in a regression, *y \~
-PGIs + PCs*, gives the same effect sizes as running an uncontrolled
-regression on PGIs which have previously had the PCs residualized out,
-<!--# TE not an expert here, but I think it should say y_resid here. I've residualised PGS but not rlrs, because it would complicate the interpetation of our beta under the Price equation. I think we should just remove this paragraph. We can explain our approach by saying the residualisation get's us closer to an unbiased PGS and cite others who have done the same thing.-->*y
-\~ PGIs_resid*. We control rather than residualizing because this gives
-the correct standard errors[^1], which might matter with our relatively
-low N.
-
-[^1]: Because the controls are correctly accounted for when calculating
-    degrees of freedom.
-
 Why residualize or control for principal components at all? I think for
 two reasons. First, we are ultimately interested in selection on the
 "true PGI". Stripping out PCs is an admittedly imperfect way to control
@@ -82,8 +71,8 @@ residualized in this way, so by examining the effect of these we're
 following the "industry standard" and learning about scores in the form
 they are actually used.
 
-To simplify interpretation, we've decided to residualise and then
-standardize the PGIs on the principal components, instead of control for
+To simplify interpretation, we've decided to residualise the PGIs on the
+principal components and then standardize them, instead of control for
 them.
 
 *In general, the authors state that they are less interested in
@@ -140,11 +129,6 @@ genetic principal components. We now no longer control for the PCs. Now
 we residualise the polygenic scores on the PCs before standardizing the
 polygenic scores. This ensures our regression estimates are exactly the
 covariance between the polygenic scores and RLRS.
-
-TE TODO: Tobias, can you check the relevant para? I guess that if both
-PGI and RLRS are normalized then the covariance is the correlation; but
-actually isn't the correct thing covariance with the not-normalized
-RLRS?
 
 *The authors might want to discuss the expected selection in terms of
 relevance. They quantify it but they do not discuss these
