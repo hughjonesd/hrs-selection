@@ -1285,12 +1285,12 @@ run_interaction_model <- function (pgs, interaction) {
   # for `interaction` itself. We can then test separately
   # for the interaction term using e.g. coeftest()
   # I prefer doing this because the coefficients are easy to interpret
-  cross_terms <- glue("{interaction} + {interaction}:{pgs}")
-  form_interaction <- reformulate(cross_terms, response = "rlrs")
+  fml_x <- glue("rlrs ~ {interaction} + {interaction}:{pgs}")
+  fml_x <- as.formula(fml_x)
   rand_white <- rand |> subset(ethnicity == "white")
-  mod_interaction <- svyglm_quiet(form_interaction, rand_white)
+  mod_x <- svyglm_quiet(fml_x, rand_white)
   
-  mod_interaction
+  mod_x
 }
 
 
@@ -1312,7 +1312,6 @@ interactions <- c(
 
 top_pgs <- c("EA", "ADHD")
 
-
 regs_to_run <- expand_grid(pgs = top_pgs, interaction = interactions)
 
 # This creates a tibble of regression results
@@ -1326,7 +1325,8 @@ tidy_regs <- regs_to_run |>
     # A test that the two interaction terms
     # have the same coefficient:
     test = list(test_interaction_term(mod)),
-    # P value of the test:
+    # P value of the test. (broom throws a warning which I think we can 
+    # ignore.)
     test.p.value = suppressWarnings(broom::tidy(test)) |> pull(p.value)
   )
 
