@@ -20,9 +20,9 @@ encouraging. Another is that we look in more detail at two extra
 generations, using children and grandparents of the respondents. We've
 given the paper a title which reflects that. Lastly, we have more
 careful and accurate estimates of effect sizes of "true" and/or
-"chip-wide" scores. 
+"chip-wide" scores.
 
-I hope this is OK. I don't want to bait and switch. But doing this seems fair to Tobias, and I think it has also improved the paper.
+I hope this is OK. I think it has appreciably improved the paper.
 
 With best wishes,
 
@@ -65,12 +65,12 @@ As stated by the authors, this study is not a causal study but one of
 correlations. The consequence of a correlation (natural selection)
 should be independent of its causes.*
 
-I think for two reasons. First, we are ultimately interested in selection on the
-"true PGI". Stripping out PCs is an admittedly imperfect way to control
-for confounding population stratification. Second, PGIs are typically
-residualized in this way, so by examining the effect of these we're
-following the "industry standard" and learning about scores in the form
-they are actually used.
+I think for two reasons. First, we are ultimately interested in
+selection on the "true PGI". Stripping out PCs is an admittedly
+imperfect way to control for confounding population stratification.
+Second, PGIs are typically residualized in this way, so by examining the
+effect of these we're following the "industry standard" and learning
+about scores in the form they are actually used.
 
 To simplify interpretation, we've decided to residualise the PGIs on the
 principal components and then standardize them, instead of control for
@@ -129,7 +129,7 @@ In the previous manuscript we used a multivariate model, controlling for
 genetic principal components. We now no longer control for the PCs. Now
 we residualise the polygenic scores on the PCs before standardizing the
 polygenic scores. This ensures our regression estimates are exactly the
-covariance between the polygenic scores and RLRS.
+covariance between our polygenic scores and RLRS.
 
 *The authors might want to discuss the expected selection in terms of
 relevance. They quantify it but they do not discuss these
@@ -149,7 +149,6 @@ We briefly mention that genetic change in traits is often opposite to
 the phenotypic change. This highlights that environmental change is
 likely to be of greater importance for phenotypic trends than genetic
 change.
-
 
 *Finally, the statement 'in the UK Biobank sample, correlations of PGS
 coefficients between younger and older parents are negative (-0.319),
@@ -206,17 +205,16 @@ then
 
 $x_r \times -sign(corr) < x_p \times -sign(corr)$
 
-Under the null, we'd expect the above equation to hold in the sample 
-for just 50% of the scores. If it holds for significantly more than 50% of 
-the scores (using bootstrapped C.I.s) then we can reject the null in favour 
-of the alternative.
+Under the null, we'd expect the above equation to hold in the sample for
+just 50% of the scores. If it holds for significantly more than 50% of
+the scores (using bootstrapped C.I.s) then we can reject the null in
+favour of the alternative.
 
-We also try a simpler approach. Using the PGIs with the
-largest and most precisely estimated selection effects in the whole
-sample, we estimate selection effects in different subgroups and test
-for a significant difference between them via a simple interaction
-term. We report these results too.
-
+We also try a simpler approach. Using the PGIs with the largest and most
+precisely estimated selection effects in the whole sample, we estimate
+selection effects in different subgroups and test for a significant
+difference between them via a simple interaction term. We report these
+results too.
 
 # Reviewer 2
 
@@ -298,10 +296,10 @@ We thought about this, and now agree that it is better to use mean
 number of children of whites and of blacks separately for each ethnic
 group:
 
-> 'RLRS is calculated separately by ethnicity. This is not ideal, because it 
-> treats the ethnicities as separate breeding populations. But the alternative of
-> calculating pooled RLRS would effectively be estimating natural selection in 
-> the whole US population by treating whites as representative. We therefore 
-> focus on the white US population, with the caveat that results from this 
-> "one data point" may not replicate in other ethnicities or countries.'
-
+> 'RLRS is calculated separately by ethnicity. This is not ideal,
+> because it treats the ethnicities as separate breeding populations.
+> But the alternative of calculating pooled RLRS would effectively be
+> estimating natural selection in the whole US population by treating
+> whites as representative. We therefore focus on the white US
+> population, with the caveat that results from this "one data point"
+> may not replicate in other ethnicities or countries.'
