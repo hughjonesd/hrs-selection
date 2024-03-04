@@ -887,7 +887,7 @@ We estimate coefficients of PGS on RLRS. These do not identify causal effects; r
 
 ```{r}
 #| label: stat-bootstraps
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| cache-comments: true
 
@@ -1056,7 +1056,7 @@ ggplot(tidy_pgs_joined$white, aes(estimate.edyrs, estimate.fert)) +
 
 ```{r}
 #| label: stat-bootstrap-gen-cor
-#| cache: true
+#| cache: false
 #| cache-comments: true
 
 # TODO set cache to FALSE before submission
@@ -1087,7 +1087,7 @@ ci_gen_cor <- confint(gen_cor)
 
 ```{r}
 #| label: stat-bootstrap-gen-cor-gkids
-#| cache: true
+#| cache: false
 #| cache-comments: true
 
 # TODO set cache to FALSE before submission
@@ -1142,7 +1142,7 @@ where $DIS_i$ is a dummy for $i$'s membership in the disadvantaged group and whe
 
 ```{r}
 #| label: stat-x-bootstrap-effect-size
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| cache-comments: true
 
@@ -1782,7 +1782,7 @@ The results here support prediction 1 but are more ambiguous for prediction 2. P
 
 [^3]: See @balbo2013fertility for a broad review of fertility theories.
 
-Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that in the US, SES maps on to race, so that ethnic differences capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents [blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`, whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority; @johnson1979minority; @yang2003big; @maralani2013demography]. And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort was exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that in the US, SES maps on to race, so that ethnic differences capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`, whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big, @maralani2013demography). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort was exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
 Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is slightly smaller than in previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $`r round(IQphen_change,1)`$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to its social implications. To know more, we must await more accurate polygenic scores.
 
