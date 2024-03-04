@@ -20,7 +20,9 @@ encouraging. Another is that we look in more detail at two extra
 generations, using children and grandparents of the respondents. We've
 given the paper a title which reflects that. Lastly, we have more
 careful and accurate estimates of effect sizes of "true" and/or
-"chip-wide" scores. I hope this is OK.
+"chip-wide" scores. 
+
+I hope this is OK. I don't want to bait and switch. But doing this seems fair to Tobias, and I think it has also improved the paper.
 
 With best wishes,
 
@@ -63,8 +65,7 @@ As stated by the authors, this study is not a causal study but one of
 correlations. The consequence of a correlation (natural selection)
 should be independent of its causes.*
 
-Why residualize or control for principal components at all? I think for
-two reasons. First, we are ultimately interested in selection on the
+I think for two reasons. First, we are ultimately interested in selection on the
 "true PGI". Stripping out PCs is an admittedly imperfect way to control
 for confounding population stratification. Second, PGIs are typically
 residualized in this way, so by examining the effect of these we're
@@ -146,14 +147,9 @@ a bit over-focused on cognition and IQ.
 
 We briefly mention that genetic change in traits is often opposite to
 the phenotypic change. This highlights that environmental change is
-likely to be of greater importance for phenotypic trends then genetic
+likely to be of greater importance for phenotypic trends than genetic
 change.
 
-TE TODO: Could we look at health trends in phenotypes? I'd guess that
-health trends improve over the C20, but we could look at some specifics.
-(Depression/BMI?) One big issue here is that maybe the PGIs have
-confounds... but perhaps that's less serious for some of these
-phenotypes
 
 *Finally, the statement 'in the UK Biobank sample, correlations of PGS
 coefficients between younger and older parents are negative (-0.319),
@@ -173,7 +169,7 @@ correlations: this can get confusing.
 
 Negatively correlated, and more strongly, opposite-signed, effects
 between young and old parents support the theory that income effects
-dominate for older parents while substitution effects dominate for
+dominate for older parents, while substitution effects dominate for
 younger parents. To be a bit more explicit: if a PGS simply doesn't
 correlate with human capital, we expect it to not be selected on among
 either group of parents. If a PGS is correlated with human capital, that
@@ -210,18 +206,17 @@ then
 
 $x_r \times -sign(corr) < x_p \times -sign(corr)$
 
-Under the null, we'd expect the above equation to hold for just 50% of
-the scores. If it holds for significantly more than 50% of the scores
-(using bootstrapped C.I.s) then we can reject the null in favour of the
-alternative.
+Under the null, we'd expect the above equation to hold in the sample 
+for just 50% of the scores. If it holds for significantly more than 50% of 
+the scores (using bootstrapped C.I.s) then we can reject the null in favour 
+of the alternative.
 
-We also try a simpler alternative approach. Using the few PGIs with the
+We also try a simpler approach. Using the PGIs with the
 largest and most precisely estimated selection effects in the whole
 sample, we estimate selection effects in different subgroups and test
-for a significant difference between them, via a simple interaction
+for a significant difference between them via a simple interaction
 term. We report these results too.
 
-TE TODO: the above
 
 # Reviewer 2
 
@@ -251,9 +246,6 @@ introduction. We have also clarified the biological theory in the Data
 section. We provide an explanation of the intuition for our approach and
 how it is established in biology, through the Robertson-Price identity,
 to estimate the selection differential.
-
-TE TODO: Write a paragraph on biol. selection. (Not sure what is meant
-here?)
 
 In terms of accepting or rejecting our theory, our paragraph in the
 discussion was:
@@ -295,7 +287,7 @@ We agree. We now discuss some health-related traits in the conclusion:
 > greater than those of education and cognitive performance. The most
 > significant, positively selected trait was ADHD, which was also found
 > in the UK [@hugh2022human]. Future research should study the health
-> and medical implications of natural selection, in addition to their
+> and medical implications of natural selection, in addition to its
 > social implications.
 
 *What is the data base for the mean number of children of people born in
@@ -306,18 +298,10 @@ We thought about this, and now agree that it is better to use mean
 number of children of whites and of blacks separately for each ethnic
 group:
 
-> "RLRS is calculated separately by ethnicity. This is not ideal,
-> because it treats the ethnicities as separate breeding populations.
-> But the alternative of calculating pooled RLRS would effectively be
-> estimating natural selection in the whole US population by treating
-> whites as representative. We therefore focus on the white US
-> population, with the caveat that this"one data point" may not be
-> representative of the US population (still less the species!) The mean
-> number of children of people born in each year was calculated using
-> sampling weights."
+> 'RLRS is calculated separately by ethnicity. This is not ideal, because it 
+> treats the ethnicities as separate breeding populations. But the alternative of
+> calculating pooled RLRS would effectively be estimating natural selection in 
+> the whole US population by treating whites as representative. We therefore 
+> focus on the white US population, with the caveat that results from this 
+> "one data point" may not replicate in other ethnicities or countries.'
 
-Effectively, the white US population is a "single data point" for theory
-testing. Note that since we don't compare the ethnicities, the only
-difference this makes is in estimating the absolute size of effects.
-
-TE TODO: change it to be separate RLRS baseline for white and black.
