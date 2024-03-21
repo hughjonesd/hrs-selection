@@ -1,6 +1,6 @@
 ---
 title: "'Natural Selection Across Three Generations of Americans': response to reviewers"
-format: docx
+format: pdf
 editor: 
   markdown: 
     wrap: 72
@@ -116,7 +116,7 @@ evolutionary biology 23.11 (2010): 2277-2288.*
 
 We quantify natural selection with the regression coefficient of the PGI
 on relative lifetime reproductive success. At times in the original
-manuscript this was wrongly referred to as a correlation but thus has
+manuscript this was wrongly referred to as a correlation but this has
 now been updated. The polygenic scores are standardized to have a
 standard deviation of 1. Under a univariate model, the regression
 coefficient is the covariance divided by the variance in the independent
