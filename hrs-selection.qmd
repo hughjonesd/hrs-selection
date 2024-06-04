@@ -850,7 +850,7 @@ n_sig_bonf_black <- sum(tidy_pgs$black$p.value < 0.05/n_tests_black)
 
 ```{r}
 #| label: stat-bootstrap-eth-cor
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| eval: false
 
@@ -887,7 +887,7 @@ We estimate coefficients of PGS on RLRS. These do not identify causal effects; r
 
 ```{r}
 #| label: stat-bootstraps
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| cache-comments: true
 
@@ -1056,7 +1056,7 @@ ggplot(tidy_pgs_joined$white, aes(estimate.edyrs, estimate.fert)) +
 
 ```{r}
 #| label: stat-bootstrap-gen-cor
-#| cache: true
+#| cache: false
 #| cache-comments: true
 
 # TODO set cache to FALSE before submission
@@ -1087,7 +1087,7 @@ ci_gen_cor <- confint(gen_cor)
 
 ```{r}
 #| label: stat-bootstrap-gen-cor-gkids
-#| cache: true
+#| cache: false
 #| cache-comments: true
 
 # TODO set cache to FALSE before submission
@@ -1142,7 +1142,7 @@ where $DIS_i$ is a dummy for $i$'s membership in the disadvantaged group and whe
 
 ```{r}
 #| label: stat-x-bootstrap-effect-size
-#| cache: true
+#| cache: false
 #| cache-lazy: false
 #| cache-comments: true
 
@@ -1457,7 +1457,7 @@ adhd_cor <- cor.test(rand$variables$adhd_score, rand$variables$ADHD,
 
 ```{r}
 #| label: stat-pgicorrect
-#| cache: true
+#| cache: false
 
 
 ####################################
@@ -1638,7 +1638,7 @@ corrected_effects |>
 
 ```{r}
 #| label: stat-bootstrap-true-effects
-#| cache: true
+#| cache: false
 #| eval: false
 
 # Now we just do this using the python tool
