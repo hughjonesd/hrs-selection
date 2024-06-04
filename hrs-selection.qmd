@@ -179,7 +179,7 @@ nice_names <- c(
 
 eths <- c("white", "black")
 
-titles <- c(white = "White", black = "Black")
+titles <- c(white = "White participants", black = "Black participants")
 
 
 shorten <- function (x) {
@@ -628,13 +628,13 @@ Here, we make an independent test of the theory in the US population, using the 
 
 # Data
 
-The HRS sample focuses on cohorts born between 1920 and 1960, but contains some younger and older participants. We include only male participants born before 1965 and female participants born before 1970, which guarantees that most will have completed their fertility by 2010. The resulting sample contains `r n_white` genotyped white participants. We focus on these because the sample size is large enough. The appendix reports some basic analyses for the `r n_black` genotyped black participants.
+The HRS sample focuses on cohorts born between 1920 and 1960, but contains some younger and older participants. We include only male participants born before 1965 and female participants born before 1970, which guarantees that most will have completed their fertility by 2010. The resulting sample contains `r n_white` genotyped white participants. We focus on these because the sample size is large enough. The appendix reports some basic analyses for the `r n_black` genotyped black participants. (Throughout, "white" and "black" refer to participants who (a) self-identified as non-Hispanic and as "White/Caucasian" and "Black/African-American" respectively, and who (b) had principal components of SNP data close to the respective population mean. See @hrspgs2020.)
 
 Genotyping took place in 2006, 2008 and subsequent years. PGS were taken from those pre-calculated by the HRS [@hrspgs2020] and those produced by the Social Science Genetic Association Consortium, as part of their Polygenic Index Repository [@becker2021resource]. Scores created by the HRS were provided for black and white participants, but Polygenic Index Repository scores were only created for white participants.
 
 For the white participants, when scores from the two samples measured the same trait, we only used the PGS from the Polygenic Index Repository. For some traits, polygenic scores were created from both European ancestry and multiple ancestry GWAS. We choose to use polygenic scores trained only on individuals of European ancestry. We discard obsolete PGS for which there is a newer, more accurate score targeting the same phenotype. We also discard PGS for number of children ever born (but keep scores for age at first birth). This leaves a total of `r length(pgs_white)` scores for the white participants. PGS were residualised on the first ten within-ethnicity principal components of the DNA array data, to reduce bias from population stratification. PGS were then rescaled to zero mean and unit variance.
 
-The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated separately by ethnicity. This is not ideal, because it treats the ethnicities as separate breeding populations. But the alternative of calculating pooled RLRS would effectively be estimating natural selection in the whole US population by treating whites as representative. We therefore focus on the white US population, with the caveat that results from this "one data point" may not replicate in other ethnicities or countries. The mean number of children of people born in each year was calculated using sampling weights.
+The key dependent variable is relative lifetime reproductive success (RLRS): number of children ever born, divided by the mean number of children of people born in the same year. RLRS is calculated separately by ethnicity. This is not ideal, because it treats the ethnicities as "separate breeding populations" (i.e. subpopulations who rarely interbreed; black and white people intermarried rarely in the HRS generation, but that is due to laws and norms against intermarriage which have now mostly disappeared.) But the alternative of calculating pooled RLRS would effectively be estimating natural selection in the whole US population by treating whites as representative. We therefore focus on the white US population, with the caveat that results from this "one data point" may not replicate in other ethnicities or countries. The mean number of children of people born in each year was calculated using sampling weights.
 
 The intuition behind our analysis is simple: if a polygenic score predicts more reproductive success, then people higher in the PGS will reproduce more than others, causing scores to increase in the population. However the approach is also based on quantitative genetic theory and is able to yield an estimate of genetic change from one generation to the next.
 
@@ -850,7 +850,7 @@ n_sig_bonf_black <- sum(tidy_pgs$black$p.value < 0.05/n_tests_black)
 
 ```{r}
 #| label: stat-bootstrap-eth-cor
-#| cache: false
+#| cache: true
 #| cache-lazy: false
 #| eval: false
 
@@ -887,7 +887,7 @@ We estimate coefficients of PGS on RLRS. These do not identify causal effects; r
 
 ```{r}
 #| label: stat-bootstraps
-#| cache: false
+#| cache: true
 #| cache-lazy: false
 #| cache-comments: true
 
@@ -1056,7 +1056,7 @@ ggplot(tidy_pgs_joined$white, aes(estimate.edyrs, estimate.fert)) +
 
 ```{r}
 #| label: stat-bootstrap-gen-cor
-#| cache: false
+#| cache: true
 #| cache-comments: true
 
 # TODO set cache to FALSE before submission
@@ -1087,7 +1087,7 @@ ci_gen_cor <- confint(gen_cor)
 
 ```{r}
 #| label: stat-bootstrap-gen-cor-gkids
-#| cache: false
+#| cache: true
 #| cache-comments: true
 
 # TODO set cache to FALSE before submission
@@ -1142,7 +1142,7 @@ where $DIS_i$ is a dummy for $i$'s membership in the disadvantaged group and whe
 
 ```{r}
 #| label: stat-x-bootstrap-effect-size
-#| cache: false
+#| cache: true
 #| cache-lazy: false
 #| cache-comments: true
 
@@ -1457,7 +1457,7 @@ adhd_cor <- cor.test(rand$variables$adhd_score, rand$variables$ADHD,
 
 ```{r}
 #| label: stat-pgicorrect
-#| cache: false
+#| cache: true
 
 
 ####################################
@@ -1638,7 +1638,7 @@ corrected_effects |>
 
 ```{r}
 #| label: stat-bootstrap-true-effects
-#| cache: false
+#| cache: true
 #| eval: false
 
 # Now we just do this using the python tool
@@ -1782,7 +1782,7 @@ The results here support prediction 1 but are more ambiguous for prediction 2. P
 
 [^3]: See @balbo2013fertility for a broad review of fertility theories.
 
-Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that in the US, SES maps on to race, so that ethnic differences capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (blacks: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`, whites: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big, @maralani2013demography). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort was exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
+Why does the US data show fewer differences by socio-economic status (SES) than the UK? One possibility is that in the US, SES maps on to race, so that ethnic differences capture some of the variation seen in the UK. The regression coefficient of phenotypic educational attainment on RLRS is more negative among black than white respondents (black respondents: `r tidy_fert_edu_phen$black$estimate`, 95% C.I. `r tidy_fert_edu_phen$black$conf.low` to `r tidy_fert_edu_phen$black$conf.high`, white respondents: `r tidy_fert_edu_phen$white$estimate`, 95% C.I. `r tidy_fert_edu_phen$white$conf.low` to `r tidy_fert_edu_phen$white$conf.high`; cf. @goldscheider1969minority, @johnson1979minority, @yang2003big, @maralani2013demography). And the slope of PGS education coefficients on fertility coefficients is larger among black respondents, though imprecisely estimated. But comparisons of PGS selection coefficients between the ethnic groups are hard because of the smaller sample size and differences in the scores' predictive power, so this hypothesis can only be speculative. Another possibility is that the US cohort was exposed to a smaller welfare state than the UK cohort, since many of them had children before the "Great Society" programs of the 1960s.
 
 Lastly, we provide the first estimates of selection differentials of "true" polygenic scores for traits other than intelligence and education, finding results typically between 0-0.2 standard deviations. Our estimate of how much natural selection is changing intelligence is slightly smaller than in previous work. For example, @kong2017selection provide an estimate of $-0.9$ IQ points every $30$ years in Iceland, compared to our $`r round(IQphen_change,1)`$ points per generation. However, cognitive traits are only one part of the story of natural selection in humans. Whilst past research has focused on these traits, we find selection differentials are often of similar magnitudes for health related traits. The selection differential for self-rated health is greater than those for education and cognitive performance. The most significant, positively selected trait was ADHD, which was also found in the UK [@hugh2022human]. Future research should study the health and medical implications of natural selection, in addition to its social implications. To know more, we must await more accurate polygenic scores.
 
@@ -1808,7 +1808,8 @@ There are `r n_black` genotyped black survey participants. Among this sample, th
 
 #rand$variables |> 
 #    mutate(
-#      Ethnicity = fct_relevel(titles[ethnicity], "White", "Black")
+#      Ethnicity = fct_relevel(titles[ethnicity], "White participants",
+#                              "Black participants")
 #    ) |> 
 #    ggplot(aes(rabyear, fill = Ethnicity)) + 
 #      geom_bar(position = "identity") +
@@ -1839,12 +1840,14 @@ for (eth in eths) {
 
 year_counts |>
   mutate(
-      Ethnicity = fct_relevel(titles[eth], "White", "Black"),
+      Ethnicity = fct_relevel(titles[eth], "White participants",
+                              "Black participants"),
     ) |> 
   ggplot(aes(x = rabyear, y = n, fill = Ethnicity)) + 
       geom_bar(stat="identity") +
       labs(x = "Birth year", y = "Count") +
-      scale_fill_manual(values = c(Black = "orange2", White = "steelblue4")) +
+      scale_fill_manual(values = c("Black participants" = "orange2",
+                                   "White participants" = "steelblue4")) +
       theme_minimal() +
       theme(legend.title = element_blank())  
 
@@ -1880,12 +1883,14 @@ for (eth in eths) {
 
 year_counts |>
    mutate(
-      Ethnicity = fct_relevel(titles[eth], "White", "Black"),
+      Ethnicity = fct_relevel(titles[eth], "White participants", 
+                              "Black participants"),
     ) |> 
   ggplot(aes(x = rabyear, y = n, fill = Ethnicity )) + 
       geom_bar(stat="identity") +
       labs(x = "Birth year", y = "Count") +
-      scale_fill_manual(values = c(Black = "orange2", White = "steelblue4")) +
+      scale_fill_manual(values = c("Black participants" = "orange2",
+                                   "White participants" = "steelblue4")) +
       theme_minimal() +
       theme(legend.title = element_blank())  
 
@@ -1924,13 +1929,14 @@ for (eth in eths) {
 
 year_counts |>
   mutate(
-      Ethnicity = fct_relevel(titles[eth], "White", "Black"),
+      Ethnicity = fct_relevel(titles[eth], "White participants",
+                              "Black participants"),
     )  |> 
   ggplot(aes(x = yearageokid, y = n, fill = Ethnicity )) + 
       geom_bar(stat="identity") +
       labs(x = "Birth year", y = "Count") +
-      scale_fill_manual(values = c(Black = "orange2", White =
-      "steelblue4")) +
+      scale_fill_manual(values = c("Black participants" = "orange2",
+                                   "White participants" = "steelblue4")) +
       theme_minimal() +
       theme(legend.title = element_blank())  
 
