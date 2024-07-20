@@ -13,7 +13,7 @@ You'll need [quarto](https://quarto.org) and [R](https://r-project.org).
 You'll need data from the RAND HRS, including genetic data, and the PGI repository: see the `setup` chunk in `hrs-selection.qmd` for details on where to put them. We can help if you are stuck.
 
 Clone this repository with `git clone https://github.com/hughjonesd/hrs-selection`. 
-Start R within the root directory. It will install renv 
+Start R within the root directory. It will install [renv](https://rstudio.github.io/renv/articles/renv.html) 
 and the required R libraries. Then from the shell, 
 run `quarto render hrs-selection.qmd` to produce the PDF. 
 
